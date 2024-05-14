@@ -1,53 +1,130 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Welcome Page</title>
-    <style>
-        .welcome-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #f1f1f1;
-            overflow: hidden;
-            opacity: 1;
-            transition: opacity 1s ease-in-out;
-        }
+  <title>Landing Page</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-        .welcome-text {
-            font-size: 48px;
-            font-weight: bold;
-            color: #333;
-            animation: slide-in 1s forwards;
-        }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      background-color: #f8f9fa;
+      color: #333;
+    }
 
-        @keyframes slide-in {
-            0% {
-                transform: translateX(-100%);
-            }
-            100% {
-                transform: translateX(0);
-            }
-        }
-    </style>
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      background-color: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: fixed;
+      width: 100%;
+      z-index: 1000;
+    }
+
+    .logo img {
+      height: 40px;
+    }
+
+    nav ul {
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    nav ul li {
+      display: inline-block;
+      margin-left: 20px;
+    }
+
+    nav ul li a {
+      text-decoration: none;
+      color: #555;
+      transition: color 0.3s ease;
+    }
+
+    nav ul li a:hover {
+      color: #007bff;
+    }
+
+    main {
+      padding-top: 80px; /* Adjust for the fixed header */
+    }
+
+    .hero {
+      text-align: center;
+      padding: 100px 0;
+    }
+
+    .hero h1 {
+      font-size: 3rem;
+      margin-bottom: 20px;
+      color: #007bff;
+    }
+
+    .hero p {
+      font-size: 1.2rem;
+      margin-bottom: 40px;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 5px;
+      transition: background-color 0.3s ease;
+    }
+
+    .btn:hover {
+      background-color: #0056b3;
+    }
+
+    @media (max-width: 768px) {
+      .logo img {
+        height: 30px;
+      }
+
+      .hero h1 {
+        font-size: 2.5rem;
+      }
+
+      .hero p {
+        font-size: 1rem;
+      }
+
+      .btn {
+        padding: 8px 16px;
+        font-size: 0.9rem;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="welcome-container">
-        <h1 class="welcome-text">Welcome</h1>
+  <header>
+    <div class="logo">
+      <img src="#" alt="Logo">
     </div>
-
-    <script>
-        setTimeout(function() {
-            var welcomeContainer = document.querySelector('.welcome-container');
-            welcomeContainer.style.opacity = '0';
-            setTimeout(function() {
-                welcomeContainer.style.display = 'none';
-            }, 1000);
-        }, 1000);
-    </script>
+    <nav>
+      <ul>
+        <li><a href="/login">Log In</a></li>
+      </ul>
+    </nav>
+  </header>
+  
+  <main>
+    <div class="hero">
+      <h1>Welcome to Our Platform</h1>
+      <p>Start trading smarter today.</p>
+      <a href="/signup" class="btn">Get Started</a>
+    </div>
+  </main>
 </body>
 </html>

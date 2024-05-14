@@ -4,6 +4,10 @@ import sqlite3
 
 app = Flask(__name__)
 
+@app.route('/')
+def index():
+    return render_template('index.html')
+
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -17,7 +21,7 @@ def signup():
 
         if existing_user:
             conn.close()
-            return render_template('signup.html', error='Username already exists')
+            return render_template('signup.html', error="Details Already Exist")
         else:
             cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
             conn.commit()
@@ -26,7 +30,7 @@ def signup():
         
     return render_template('signup.html')
 
-@app.route('/')
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -42,19 +46,18 @@ def login():
         user = cursor.fetchone()
 
         if user:
-            return redirect(url_for('home'))  # Redirect to the home page
+            return render_template("home.html", _methods=["POST"])  # Redirect to the home page with POST method
         else:
             return 'Username or password is incorrect'
 
     return render_template('login.html')
 
-@app.route('/home')
+@app.route('/home', methods=['POST', 'GET'])
 def home():
-    refferer = request.referrer
-    if refferer and refferer.endswith('/login'):
+    if request.method == 'POST':
         return render_template('home.html')
-    else:
-        return redirect(url_for('login'))
+    elif request.method == 'GET':
+        return render_template("login.html", error="Please login first")
 
 
 

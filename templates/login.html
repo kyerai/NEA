@@ -11,6 +11,7 @@
     }
         
         h2 {
+            
             text-align: center;
             color: #333333;
         }
@@ -72,6 +73,17 @@
         <input type="submit" value="Login">
     </form>
     <a href="/signup">Create An Account</a>
+
+    {% if error %}
+        <div class="popup">
+            <p style="color: red;">{{ error }}</p>
+        </div>
+    {% endif %}
+    {% if success %}
+    <div>
+        <p>{{ success }}</p>
+    </div>
+    {% endif %}
 
 </body>
 </html>

@@ -1,16 +1,31 @@
 import sqlite3
 
-def create():
-    connect = sqlite3.connect('/Users/kyeraikundalia/Documents/GitHub/NEA/users.db')
-    cursor = connect.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE, 
-            password TEXT
-        )
-    ''')
-    connect.commit()
-    connect.close()
+# Connect to SQLite database (or create it if it doesn't exist)
+conn = sqlite3.connect('app.db')
+c = conn.cursor()
 
-create()
+# Create a table called users
+c.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        password TEXT NOT NULL
+    )
+''')
+
+c.execute('''
+    CREATE TABLE IF NOT EXISTS portfolio (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        asset_name TEXT,
+        quantity INTEGER,
+        purchase_price REAL,
+        purchase_date DATE,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )
+''')
+
+
+# Close the connection
+conn.close()
+

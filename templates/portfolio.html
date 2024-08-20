@@ -1,0 +1,78 @@
+<!-- HTML (portfolio.html) -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Portfolio</title>
+    <style>
+        /* CSS styles */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+        }
+        
+        form {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            font-weight: bold;
+        }
+        
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        input[type="submit"] {
+            margin-bottom: 10px;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <form id="portfolioForm" action="/portfolio" method="post">
+        <label for="asset_name">Asset Name:</label><br>
+        <input type="text" id="asset_name" name="asset_name" placeholder="Enter asset name"><br>
+        <label for="quantity">Quantity:</label><br>
+        <input type="number" id="quantity" name="quantity" placeholder="Enter quantity"><br>
+        <label for="purchase_price">Purchase Price:</label><br>
+        <input type="number" id="purchase_price" name="purchase_price" placeholder="Enter purchase price"><br>
+        <label for="purchase_date">Purchase Date:</label><br>
+        <input type="date" id="purchase_date" name="purchase_date"><br>
+        <input type="submit" value="Submit">
+    </form>
+
+    <table>
+        <tr>
+            <th>Asset Name</th>
+            <th>Quantity</th>
+            <th>Purchase Price</th>
+            <th>Date</th>
+        </tr>
+        {% for position in positions %}
+        <tr>
+            <td>{{ position[2] }}</td>  <!-- This is the asset name -->
+            <td>{{ position[3] }}</td>  <!-- This is the quantity -->
+            <td>{{ position[4] }}</td>  <!-- This is the purchase price -->
+            <td>{{ position[5] }}</td>  <!-- This is the date -->
+        </tr>
+        {% endfor %}
+    </table>
+    
+</body>
+</html>

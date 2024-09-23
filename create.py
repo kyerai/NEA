@@ -9,7 +9,8 @@ c.execute('''
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT NOT NULL,
-        password TEXT NOT NULL
+        password TEXT NOT NULL,
+        balance real DEFAULT 10000
     )
 ''')
 
@@ -21,6 +22,7 @@ c.execute('''
         quantity INTEGER,
         purchase_price REAL,
         purchase_date DATE,
+        current_price REAL,
         FOREIGN KEY(user_id) REFERENCES users(id)
     )
 ''')

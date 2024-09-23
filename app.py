@@ -1,7 +1,8 @@
-from flask import Flask, render_template, redirect, url_for, request, session, g
+from flask import Flask, render_template, redirect, url_for, request, session, flash
 import sqlite3
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
+import yfinance as yf
 
 
 app = Flask(__name__)
@@ -64,34 +65,77 @@ def home():
 @app.route('/portfolio', methods=['GET', 'POST'])
 def portfolio():
     if 'logged_in' in session and session['logged_in']:
+        conn = sqlite3.connect('/Users/kyeraikundalia/Documents/GitHub/NEA/app.db')
+        cursor = conn.cursor()
+
+        if request.method == 'POST' and 'close_position' in request.form:
+            # Close the position by removing it from the portfolio
+            position_id = int(request.form['close_position'])
+            cursor.execute("DELETE FROM portfolio WHERE id = ?", (position_id,))
+            conn.commit()
+
+        # Fetch portfolio positions for the logged-in user
+        cursor.execute("SELECT id FROM users WHERE username = ?", (session['username'],))
+        user_id = cursor.fetchone()[0]
+        cursor.execute("SELECT * FROM portfolio WHERE user_id = ?", (user_id,))
+        positions = cursor.fetchall()
+
+        # Get current prices for each asset in portfolio
+        current_price = {}
+        for position in positions:
+            asset_name = position[2]
+            current_price[asset_name] = round(yf.Ticker(asset_name).history(period='1d')['Close'][0], 2)
+
+        # Get user's remaining balance
+        cursor.execute("SELECT balance FROM users WHERE username = ?", (session['username'],))
+        balance = cursor.fetchone()[0]
+
+        conn.close()
+        return render_template('portfolio.html', positions=positions, current_price=current_price, balance=balance)
+
+    return redirect('/login')
+
+@app.route('/trade', methods=['GET', 'POST'])
+def trade():
+    if 'logged_in' in session and session['logged_in']:
+        conn = sqlite3.connect('/Users/kyeraikundalia/Documents/GitHub/NEA/app.db')
+        cursor = conn.cursor()
+
         if request.method == 'POST':
             asset_name = request.form['asset_name']
-            quantity = request.form['quantity']
-            purchase_price = request.form['purchase_price']
-            purchase_date = request.form['purchase_date']
-            
-            conn = sqlite3.connect('/Users/kyeraikundalia/Documents/GitHub/NEA/app.db')
-            cursor = conn.cursor()
-            cursor.execute("SELECT id FROM users WHERE username = ?", (session['username'],))
-            user_id = cursor.fetchone()[0]
-            cursor.execute("INSERT INTO portfolio (user_id, asset_name, quantity, purchase_price, purchase_date) VALUES (?, ?, ?, ?, ?)", (user_id, asset_name, quantity, purchase_price, purchase_date))
-            conn.commit()
-            conn.close()
-                  
-        try:
-            conn = sqlite3.connect('/Users/kyeraikundalia/Documents/GitHub/NEA/app.db')
-            print("Database connected successfully")  # Debugging statement 1
-            cursor = conn.cursor()
-            cursor.execute("SELECT id FROM users WHERE username = ?", (session['username'],))
-            user_id = cursor.fetchone()[0] 
-            print(f"User ID: {user_id}")  # Debugging statement 2
-            cursor.execute("SELECT * FROM portfolio WHERE user_id = ?", (user_id,))
-            positions = cursor.fetchall()
-            print(f"Positions: {positions}")  # Debugging statement 3
-        except:
-            positions = []
+            quantity = int(request.form['quantity'])
+            purchase_price = round(yf.Ticker(asset_name).history(period='1d')['Close'][0], 2)
+            total_cost = purchase_price * quantity
 
-        return render_template('portfolio.html', positions=positions)
+            # Get user's current balance
+            cursor.execute("SELECT balance FROM users WHERE username = ?", (session['username'],))
+            current_balance = cursor.fetchone()[0]
+
+            if total_cost <= current_balance:
+                # Deduct cost from balance and update user's balance
+                new_balance = current_balance - total_cost
+                cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, session['username']))
+
+                # Get user ID and save new trade in portfolio
+                cursor.execute("SELECT id FROM users WHERE username = ?", (session['username'],))
+                user_id = cursor.fetchone()[0]
+                purchase_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                cursor.execute("INSERT INTO portfolio (user_id, asset_name, quantity, purchase_price, purchase_date) VALUES (?, ?, ?, ?, ?)",
+                               (user_id, asset_name, quantity, purchase_price, purchase_date))
+                conn.commit()
+            else:
+                # Notify the user if they don't have enough balance
+                flash('Not enough balance to make the purchase!')
+
+        # Fetch user's current balance to display on trade page
+        cursor.execute("SELECT balance FROM users WHERE username = ?", (session['username'],))
+        balance = cursor.fetchone()[0]
+        conn.close()
+
+        return render_template('trade.html', balance=balance)
+
+    return redirect('/login')
+
 
 
 @app.route('/logout')

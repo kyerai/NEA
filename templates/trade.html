@@ -1,20 +1,52 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trade</title>
-    <style>
-    </style>
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <h1>Trade Stocks</h1>
-    <div class="balance">Remaining Balance: ${{ balance }}</div>
+    <div class="container">
+        <header>
+            <h1>Trade Stocks</h1>
+            <div class="balance">Remaining Balance: ${{ balance }}</div>
+        </header>
 
-    <form action="/trade" method="POST">
-        <label for="asset_name">Asset Name:</label>
-        <input type="text" id="asset_name" name="asset_name" placeholder="Enter asset name"><br>
-        <label for="quantity">Quantity:</label>
-        <input type="number" id="quantity" name="quantity" placeholder="Enter quantity"><br>
-        <input type="submit" value="Buy">
-    </form>
+        <form action="/trade" method="POST">
+            <div class="form-group">
+                <label for="asset_name">Asset Name:</label>
+                <input type="text" id="asset_name" name="asset_name" placeholder="Enter asset name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="quantity">Quantity:</label>
+                <input type="number" id="quantity" name="quantity" placeholder="Enter quantity" required min="1">
+            </div>
+
+            <div class="form-group">
+                <label for="position_type">Position Type:</label>
+                <select id="position_type" name="position_type" required>
+                    <option value="long">Long</option>
+                    <option value="short">Short</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <input type="submit" value="Submit" class="btn">
+            </div>
+        </form>
+
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <ul class="flashes">
+            {% for message in messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% endwith %}
+    </div>
 </body>
 </html>

@@ -1,38 +1,66 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portfolio</title>
-    <style>
-        /* Your CSS styling */
-    </style>
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <div class="balance">Remaining Balance: ${{ balance }}</div>
+    <div class="container">
+        <header>
+            <h1>Your Portfolio</h1>
+            <div class="balance">Remaining Balance: ${{ balance }}</div>
+        </header>
 
-    <table>
-        <tr>
-            <th>Asset Name</th>
-            <th>Quantity</th>
-            <th>Purchase Price</th>
-            <th>Date</th>
-            <th>Current Price</th>
-            <th>Actions</th>
-        </tr>
-        {% for position in positions %}
-        <tr>
-            <td>{{ position[2] }}</td>
-            <td>{{ position[3] }}</td>
-            <td>{{ position[4] }}</td>
-            <td>{{ position[5] }}</td>
-            <td>{{ current_price[position[2]] }}</td>
-            <td>
-                <form action="/portfolio" method="POST">
-                    <input type="hidden" name="close_position" value="{{ position[0] }}">
-                    <input type="submit" value="Close Position">
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
+        <!-- Reset Portfolio Balance Form -->
+        <form action="/portfolio" method="POST" class="reset-form">
+            <input type="hidden" name="reset_balance" value="1">
+            <input type="submit" value="Reset Portfolio Balance" class="btn reset-btn">
+        </form>
+
+        <table class="portfolio-table">
+            <thead>
+                <tr>
+                    <th>Asset Name</th>
+                    <th>Quantity</th>
+                    <th>Purchase Price</th>
+                    <th>Date</th>
+                    <th>Position Type</th>  <!-- New column for position type -->
+                    <th>Current Price</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for position in positions %}
+                <tr>
+                    <td>{{ position[2] }}</td>
+                    <td>{{ position[3] }}</td>
+                    <td>{{ position[4] }}</td>
+                    <td>{{ position[5] }}</td>
+                    <td>{{ position[6] }}</td>  <!-- Display position type -->
+                    <td>${{ current_price[position[2]] }}</td>
+                    <td>
+                        <form action="/portfolio" method="POST">
+                            <input type="hidden" name="close_position" value="{{ position[0] }}">
+                            <input type="submit" value="Close Position" class="btn close-btn">
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <ul class="flashes">
+            {% for message in messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% endwith %}
+    </div>
 </body>
 </html>

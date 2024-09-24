@@ -68,11 +68,41 @@ def portfolio():
         conn = sqlite3.connect('/Users/kyeraikundalia/Documents/GitHub/NEA/app.db')
         cursor = conn.cursor()
 
-        if request.method == 'POST' and 'close_position' in request.form:
-            # Close the position by removing it from the portfolio
-            position_id = int(request.form['close_position'])
-            cursor.execute("DELETE FROM portfolio WHERE id = ?", (position_id,))
-            conn.commit()
+        if request.method == 'POST':
+            if 'close_position' in request.form:
+                # Close the position by removing it from the portfolio
+                position_id = int(request.form['close_position'])
+                cursor.execute("SELECT asset_name, quantity, purchase_price FROM portfolio WHERE id = ?", (position_id,))
+                position = cursor.fetchone()
+
+                if position:
+                    asset_name, quantity, purchase_price = position
+                    current_price = round(yf.Ticker(asset_name).history(period='1d')['Close'][0], 2)
+                    total_value = current_price * quantity
+                    profit_or_loss = (current_price - purchase_price) * quantity
+
+                    # Get the user's current balance and update it
+                    cursor.execute("SELECT balance FROM users WHERE username = ?", (session['username'],))
+                    current_balance = cursor.fetchone()[0]
+                    new_balance = round(current_balance + total_value, 2)
+
+                    cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, session['username']))
+                    cursor.execute("DELETE FROM portfolio WHERE id = ?", (position_id,))
+                    conn.commit()
+
+                    # Show profit/loss in the flash message
+                    if profit_or_loss >= 0:
+                        flash(f'Position closed for {asset_name}. Profit: ${profit_or_loss:.2f}. Added ${total_value:.2f} to your balance.')
+                    else:
+                        flash(f'Position closed for {asset_name}. Loss: ${-profit_or_loss:.2f}. Added ${total_value:.2f} to your balance.')
+
+            elif 'reset_balance' in request.form:
+                # Reset user's balance to a default value (e.g., $10,000) and delete all positions
+                default_balance = 10000
+                cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (default_balance, session['username']))
+                cursor.execute("DELETE FROM portfolio WHERE user_id = (SELECT id FROM users WHERE username = ?)", (session['username'],))
+                conn.commit()
+                flash('Portfolio balance reset to $10,000 and all positions closed.')
 
         # Fetch portfolio positions for the logged-in user
         cursor.execute("SELECT id FROM users WHERE username = ?", (session['username'],))
@@ -95,6 +125,8 @@ def portfolio():
 
     return redirect('/login')
 
+
+
 @app.route('/trade', methods=['GET', 'POST'])
 def trade():
     if 'logged_in' in session and session['logged_in']:
@@ -113,7 +145,7 @@ def trade():
 
             if total_cost <= current_balance:
                 # Deduct cost from balance and update user's balance
-                new_balance = current_balance - total_cost
+                new_balance = round(current_balance - total_cost, 2)
                 cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, session['username']))
 
                 # Get user ID and save new trade in portfolio

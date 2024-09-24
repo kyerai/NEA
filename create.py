@@ -22,12 +22,10 @@ c.execute('''
         quantity INTEGER,
         purchase_price REAL,
         purchase_date DATE,
-        current_price REAL,
+        position_type TEXT,  # New column for position type
         FOREIGN KEY(user_id) REFERENCES users(id)
     )
 ''')
 
-
 # Close the connection
 conn.close()
-

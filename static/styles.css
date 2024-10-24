@@ -31,12 +31,59 @@ h1 {
     text-align: center;
 }
 
-/* Header Balance Styling */
+/* Balance Styling */
 .balance {
     font-size: 18px;
     color: #4caf50;
     text-align: right;
     margin-bottom: 20px;
+}
+
+/* Button Styling */
+.btn {
+    padding: 10px 15px;
+    font-size: 14px;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 5px;
+}
+
+/* Buy Button (Long) */
+.trade-btn {
+    background-color: #2ecc71;
+}
+
+.trade-btn:hover {
+    background-color: #27ae60;
+}
+
+/* Short Button */
+.short-btn {
+    background-color: #e74c3c;
+}
+
+.short-btn:hover {
+    background-color: #c0392b;
+}
+
+/* Close Position Button */
+.close-btn {
+    background-color: #f39c12;
+}
+
+.close-btn:hover {
+    background-color: #e67e22;
+}
+
+/* Reset Balance Button */
+.reset-btn {
+    background-color: #3498db;
+}
+
+.reset-btn:hover {
+    background-color: #2980b9;
 }
 
 /* Table Styling */
@@ -66,39 +113,7 @@ h1 {
     background-color: #f1f1f1;
 }
 
-/* Button Styling */
-.btn {
-    padding: 10px 15px;
-    font-size: 14px;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.close-btn {
-    background-color: #e74c3c;
-}
-
-.close-btn:hover {
-    background-color: #c0392b;
-}
-
-.reset-btn {
-    background-color: #3498db;
-}
-
-.reset-btn:hover {
-    background-color: #2980b9;
-}
-
 /* Form Styling */
-form {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 20px;
-}
-
 input[type="text"], input[type="number"] {
     padding: 10px;
     margin: 10px 0;
@@ -109,25 +124,21 @@ input[type="text"], input[type="number"] {
     font-size: 16px;
 }
 
-/* Submit Button for Trading Form */
-input[type="submit"] {
-    padding: 12px 20px;
-    background-color: #2ecc71;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+form {
+    margin-bottom: 20px;
 }
 
-input[type="submit"]:hover {
-    background-color: #27ae60;
+input[type="submit"], .btn {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
 }
 
 /* Flash Messages */
 .flashes {
     list-style: none;
-    margin: 20px 0;
     padding: 0;
+    margin: 20px 0;
     color: #e74c3c;
     text-align: center;
 }
@@ -141,11 +152,15 @@ input[type="submit"]:hover {
     font-weight: bold;
 }
 
-/* Media Query for Mobile Responsiveness */
+/* Media Queries for Mobile Responsiveness */
 @media (max-width: 768px) {
     .container {
         width: 100%;
         padding: 10px;
+    }
+
+    h1 {
+        font-size: 20px;
     }
 
     .portfolio-table th, .portfolio-table td {
@@ -153,7 +168,102 @@ input[type="submit"]:hover {
         padding: 8px;
     }
 
-    h1 {
-        font-size: 20px;
+    input[type="submit"], .btn {
+        font-size: 16px;
     }
+}
+
+.profit {
+    color: green;
+}
+
+.loss {
+    color: red;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f4f4;
+}
+
+h1 {
+    color: #333;
+}
+
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+a {
+    text-decoration: none;
+    color: #007BFF;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+dl {
+    background-color: #fff;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+dt {
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+dd {
+    margin-left: 20px;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+}
+
+header {
+    background-color: #333;
+    color: white;
+    padding: 1rem;
+}
+
+header nav ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+}
+
+header nav ul li {
+    margin-right: 20px;
+}
+
+header nav ul li a {
+    color: white;
+    text-decoration: none;
+}
+
+main {
+    padding: 20px;
+}
+
+.progress-bar {
+    background-color: #ccc;
+    border-radius: 5px;
+    width: 100%;
+    height: 20px;
+    margin: 20px 0;
+}
+
+.progress {
+    background-color: #4caf50;
+    height: 100%;
+    border-radius: 5px;
 }

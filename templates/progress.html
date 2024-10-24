@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+    <h1>Progress Tracker</h1>
+    <p>You have completed {{ completed_percentage }}% of the course.</p>
+    <div class="progress-bar">
+        <div class="progress" style="width: {{ completed_percentage | int | default(0) }}%;"></div>
+    </div>
+
+    <p>Articles Completed: {{ articles_completed }}/{{ total_articles }}</p>
+    <p>Quizzes Completed: {{ quizzes_completed }}/{{ total_quizzes }}</p>
+</section>
+{% endblock %}

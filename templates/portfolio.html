@@ -26,8 +26,9 @@
                     <th>Quantity</th>
                     <th>Purchase Price</th>
                     <th>Date</th>
-                    <th>Position Type</th>  <!-- New column for position type -->
+                    <th>Position Type</th>
                     <th>Current Price</th>
+                    <th>Profit/Loss</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -38,18 +39,22 @@
                     <td>{{ position[3] }}</td>
                     <td>{{ position[4] }}</td>
                     <td>{{ position[5] }}</td>
-                    <td>{{ position[6] }}</td>  <!-- Display position type -->
+                    <td>{{ position[6] }}</td>
                     <td>${{ current_price[position[2]] }}</td>
+                    <td class="{% if profit_loss[position[2]] > 0 %}profit{% else %}loss{% endif %}">
+                        ${{ profit_loss[position[2]] }}
+                    </td>                    
                     <td>
                         <form action="/portfolio" method="POST">
                             <input type="hidden" name="close_position" value="{{ position[0] }}">
                             <input type="submit" value="Close Position" class="btn close-btn">
-                        </form>
+                        </form>                        
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+        
 
         <!-- Flash messages -->
         {% with messages = get_flashed_messages() %}

@@ -22,7 +22,7 @@ c.execute('''
         quantity INTEGER,
         purchase_price REAL,
         purchase_date DATE,
-        position_type TEXT,  # New column for position type
+        position_type TEXT,  
         FOREIGN KEY(user_id) REFERENCES users(id)
     )
 ''')

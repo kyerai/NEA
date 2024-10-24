@@ -4,49 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trade</title>
-    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Trade Stocks</h1>
-            <div class="balance">Remaining Balance: ${{ balance }}</div>
-        </header>
+    <h1>Trade Stocks</h1>
 
-        <form action="/trade" method="POST">
-            <div class="form-group">
-                <label for="asset_name">Asset Name:</label>
-                <input type="text" id="asset_name" name="asset_name" placeholder="Enter asset name" required>
-            </div>
-
-            <div class="form-group">
-                <label for="quantity">Quantity:</label>
-                <input type="number" id="quantity" name="quantity" placeholder="Enter quantity" required min="1">
-            </div>
-
-            <div class="form-group">
-                <label for="position_type">Position Type:</label>
-                <select id="position_type" name="position_type" required>
-                    <option value="long">Long</option>
-                    <option value="short">Short</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <input type="submit" value="Submit" class="btn">
-            </div>
-        </form>
-
-        <!-- Flash messages -->
-        {% with messages = get_flashed_messages() %}
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages() %}
         {% if messages %}
-        <ul class="flashes">
-            {% for message in messages %}
-            <li>{{ message }}</li>
-            {% endfor %}
-        </ul>
+            <ul>
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
         {% endif %}
-        {% endwith %}
+    {% endwith %}
+
+    <!-- Trade Form -->
+    <form action="/trade" method="POST">
+        <label for="asset_name">Asset Name (Ticker):</label>
+        <input type="text" id="asset_name" name="asset_name" placeholder="Enter stock symbol" required><br>
+
+        <label for="quantity">Quantity (Optional):</label>
+        <input type="number" id="quantity" name="quantity" placeholder="Enter quantity"><br>
+
+        <button type="submit" name="action" value="buy">Buy (Long)</button>
+        <button type="submit" name="action" value="short">Short Sell</button>
+        <button type="submit" name="action" value="search">Search Stock</button>
+    </form>
+
+    <!-- Interactive Plotly Graph -->
+    {% if graph_html %}
+    <div>
+        {{ graph_html | safe }}
     </div>
+    {% endif %}
+
+    <!-- Company Information Section -->
+    {% if company_info %}
+    <h2>Company Overview for {{ asset_name }}</h2>
+    <p><strong>Current Price:</strong> ${{ company_info.current_price }}</p>
+    <p><strong>Market Cap:</strong> ${{ company_info.market_cap }}</p>
+    <p><strong>P/E Ratio:</strong> {{ company_info.pe_ratio }}</p>
+    <p><strong>52-Week High:</strong> ${{ company_info.high_52_week }}</p>
+    <p><strong>52-Week Low:</strong> ${{ company_info.low_52_week }}</p>
+    <p><strong>Description:</strong> {{ company_info.description }}</p>
+    {% endif %}
 </body>
 </html>

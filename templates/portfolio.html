@@ -3,22 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portfolio</title>
+    <title>Portfolio | Trading Academy</title>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
+
+  <!-- Navigation -->
+  <header>
+    <nav>
+      <ul>
+        <li><a href="/home">Home</a></li>
+        <li><a href="/trade">Trade</a></li>
+        <li><a href="/portfolio">Portfolio</a></li>
+        <li><a href="/glossary">Glossary</a></li>
+        <li><a href="/articles">Articles</a></li>
+        <li><a href="/progress">Progress</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Main Content -->
+  <main>
     <div class="container">
-        <header>
-            <h1>Your Portfolio</h1>
-            <div class="balance">Remaining Balance: ${{ balance }}</div>
-        </header>
+        <h1>Your Portfolio</h1>
 
-        <!-- Reset Portfolio Balance Form -->
-        <form action="/portfolio" method="POST" class="reset-form">
-            <input type="hidden" name="reset_balance" value="1">
-            <input type="submit" value="Reset Portfolio Balance" class="btn reset-btn">
-        </form>
+        <!-- Balance and Reset Button Section -->
+        <div class="balance-container">
+            <div class="balance"><strong>Remaining Balance:</strong> ${{ balance }}</div>
+            <form action="/portfolio" method="POST" class="reset-form">
+                <input type="hidden" name="reset_balance" value="1">
+                <input type="submit" value="Reset Portfolio Balance" class="reset-btn">
+            </form>
+        </div>
 
+        <!-- Portfolio Table -->
         <table class="portfolio-table">
             <thead>
                 <tr>
@@ -47,16 +65,15 @@
                     <td>
                         <form action="/portfolio" method="POST">
                             <input type="hidden" name="close_position" value="{{ position[0] }}">
-                            <input type="submit" value="Close Position" class="btn close-btn">
+                            <input type="submit" value="Close Position" class="btn btn-danger">
                         </form>                        
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-        
 
-        <!-- Flash messages -->
+        <!-- Flash Messages -->
         {% with messages = get_flashed_messages() %}
         {% if messages %}
         <ul class="flashes">
@@ -67,5 +84,7 @@
         {% endif %}
         {% endwith %}
     </div>
+  </main>
+
 </body>
 </html>

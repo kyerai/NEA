@@ -2,7 +2,10 @@
 {% block content %}
 <section>
     <h1>Glossary of Trading Terms</h1>
-    <input type="text" id="search" placeholder="Search Terms..." onkeyup="filterGlossary()">
+    <form method="GET" action="/glossary">
+        <input type="text" name="search" placeholder="Search Terms..." class="search-box" value="{{ request.args.get('search', '') }}">
+        <button type="submit" class="btn">Search</button>
+    </form>
 
     <ul id="glossary-list">
         <!-- Glossary Terms -->
@@ -41,20 +44,5 @@
         <li><strong>Stop Order:</strong> An order to buy or sell a stock once it reaches a certain price.</li>
         <li><strong>Trailing Stop Order:</strong> A stop order that adjusts with the stock price to lock in profits or limit losses.</li>
     </ul>
-
-    <script>
-        function filterGlossary() {
-            let input = document.getElementById('search').value.toLowerCase();
-            let listItems = document.querySelectorAll('#glossary-list li');
-
-            listItems.forEach(item => {
-                if (item.innerText.toLowerCase().includes(input)) {
-                    item.style.display = '';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-        }
-    </script>
 </section>
 {% endblock %}

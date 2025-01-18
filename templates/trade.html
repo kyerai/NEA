@@ -20,7 +20,6 @@
     </ul>
   </nav>
 
-
   <!-- Sidebar for Common Assets -->
   <div class="sidebar">
       <h2>Common Assets</h2>
@@ -36,7 +35,7 @@
 
   <!-- Main Trading Content -->
   <main class="trading-content">
-    
+
     <!-- Stock Search Section -->
     <section class="search-section">
       <h1>Search for a Stock</h1>
@@ -60,7 +59,7 @@
     <section class="chart-section">
       {% if asset_name %}
         <h1>Trade {{ asset_name }}</h1>
-        
+
         <!-- Trading Graph -->
         <div id="stock-graph">
           {{ graph_html | safe }}
@@ -88,6 +87,12 @@
 
           <label for="quantity">Quantity:</label>
           <input type="number" id="quantity" name="quantity" required><br>
+
+          <label for="stop_loss">Stop Loss ($):</label>
+          <input type="number" id="stop_loss" name="stop_loss" step="0.01" placeholder="Enter Stop Loss (optional)"><br>
+
+          <label for="take_profit">Take Profit ($):</label>
+          <input type="number" id="take_profit" name="take_profit" step="0.01" placeholder="Enter Take Profit (optional)"><br>
 
           <button type="submit" name="action" value="buy" class="btn">Buy</button>
           <button type="submit" name="action" value="short" class="btn btn-danger">Short</button>

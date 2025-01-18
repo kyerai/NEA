@@ -10,7 +10,8 @@ c.execute('''
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT NOT NULL,
         password TEXT NOT NULL,
-        balance real DEFAULT 10000
+        balance real DEFAULT 10000,
+        salt TEXT
     )
 ''')
 
@@ -23,6 +24,8 @@ c.execute('''
         purchase_price REAL,
         purchase_date DATE,
         position_type TEXT,  
+        stop_loss REAL,
+        take_profit REAL,
         FOREIGN KEY(user_id) REFERENCES users(id)
     )
 ''')

@@ -43,8 +43,8 @@
                     <th>Asset Name</th>
                     <th>Quantity</th>
                     <th>Purchase Price</th>
-                    <th>Date</th>
-                    <th>Position Type</th>
+                    <th>Stop Loss</th>
+                    <th>Take Profit</th>
                     <th>Current Price</th>
                     <th>Profit/Loss</th>
                     <th>Actions</th>
@@ -56,8 +56,8 @@
                     <td>{{ position[2] }}</td>
                     <td>{{ position[3] }}</td>
                     <td>{{ position[4] }}</td>
-                    <td>{{ position[5] }}</td>
-                    <td>{{ position[6] }}</td>
+                    <td>${{ position[5] if position[5] > 0 else 'N/A' }}</td>
+                    <td>${{ position[6] if position[6] > 0 else 'N/A' }}</td>
                     <td>${{ current_price[position[2]] }}</td>
                     <td class="{% if profit_loss[position[2]] > 0 %}profit{% else %}loss{% endif %}">
                         ${{ profit_loss[position[2]] }}
@@ -65,6 +65,8 @@
                     <td>
                         <form action="/portfolio" method="POST">
                             <input type="hidden" name="close_position" value="{{ position[0] }}">
+                            <label for="quantity_to_close">Quantity to Close:</label>
+                            <input type="number" id="quantity_to_close" name="quantity_to_close" min="1" max="{{ position[3] }}" required>
                             <input type="submit" value="Close Position" class="btn btn-danger">
                         </form>                        
                     </td>

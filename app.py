@@ -4,8 +4,10 @@ from datetime import datetime, timedelta
 import yfinance as yf
 import plotly.io as pio
 import plotly.graph_objects as go
+import threading
 import random
 import string
+import time
 
 class StockApp:
     def __init__(self):
@@ -20,6 +22,9 @@ class StockApp:
         self.cache_timeout = timedelta(minutes=10)  # Set cache expiration time
         self.conn = None
         self.cursor = None
+
+        # Start background monitoring thread
+        self.start_price_monitoring()
 
     def generate_salt(self, length=16):
         """Generate a random salt of specified length."""
@@ -154,6 +159,68 @@ class StockApp:
             print(f"Error fetching data for {ticker}: {str(e)}")
             return None
 
+    def monitor_positions(self):
+        """Monitor active positions for stop-loss and take-profit execution."""
+        while True:
+            self.conn = sqlite3.connect(self.db_path)
+            self.cursor = self.conn.cursor()
+
+            # Fetch all active positions
+            self.cursor.execute("SELECT id, asset_name, quantity, purchase_price, stop_loss, take_profit, position_type, user_id FROM portfolio")
+            positions = self.cursor.fetchall()
+
+            for position in positions:
+                position_id, asset_name, quantity, purchase_price, stop_loss, take_profit, position_type, user_id = position
+                try:
+                    # Fetch current price
+                    stock_data = self.fetch_stock_data(asset_name, '1d')
+                    if stock_data is not None:
+                        current_price = round(stock_data['Close'].iloc[-1], 2)
+
+                        if stop_loss is not None and current_price <= stop_loss:
+                            self.execute_trade(position_id, current_price, quantity, user_id, "Stop-loss triggered")
+                            continue
+
+                        if take_profit is not None and current_price >= take_profit:
+                            self.execute_trade(position_id, current_price, quantity, user_id, "Take-profit triggered")
+                            continue
+
+                except Exception as e:
+                    print(f"Error monitoring position {position_id} for {asset_name}: {str(e)}")
+
+            self.conn.close()
+            time.sleep(60)  # Wait for 1 minute before checking again
+
+    def execute_trade(self, position_id, current_price, quantity, user_id, reason):
+        """Execute trade by closing position and updating balance."""
+        self.cursor.execute("SELECT balance FROM users WHERE id = ?", (user_id,))
+        current_balance = self.cursor.fetchone()[0]
+
+        # Fetch position details
+        self.cursor.execute("SELECT purchase_price, position_type FROM portfolio WHERE id = ?", (position_id,))
+        purchase_price, position_type = self.cursor.fetchone()
+
+        # Calculate profit or loss
+        if position_type == 'long':
+            profit_loss = round((current_price - purchase_price) * quantity, 2)
+        elif position_type == 'short':
+            profit_loss = round((purchase_price - current_price) * quantity, 2)
+
+        # Update balance
+        new_balance = current_balance + profit_loss
+        self.cursor.execute("UPDATE users SET balance = ? WHERE id = ?", (new_balance, user_id))
+
+        # Delete the position
+        self.cursor.execute("DELETE FROM portfolio WHERE id = ?", (position_id,))
+        self.conn.commit()
+
+        print(f"{reason}: Closed position {position_id} with P/L: ${profit_loss:.2f}")
+
+    def start_price_monitoring(self):
+        """Start a background thread for monitoring prices."""
+        monitoring_thread = threading.Thread(target=self.monitor_positions, daemon=True)
+        monitoring_thread.start()
+
     def create_plot(self, stock_data, chart_type):
         fig = go.Figure()
         if chart_type == 'candlestick':
@@ -184,25 +251,30 @@ class StockApp:
 
         graph_html = None
         company_info = {}
-        asset_name = request.form.get('asset_name') if 'asset_name' in request.form else None
-        timeframe = request.form.get('timeframe', '6mo')
+        asset_name = request.args.get('asset_name') or request.form.get('asset_name')
+        timeframe = request.args.get('timeframe') or request.form.get('timeframe', '6mo')
 
         # Fetch user's balance
         self.cursor.execute("SELECT balance FROM users WHERE username = ?", (session['username'],))
         balance = self.cursor.fetchone()[0]
 
         # If search form is submitted, display stock info
-        if 'search_stock' in request.form:
+        if asset_name or 'search_stock' in request.form:
             try:
                 stock_data = self.fetch_stock_data(asset_name, timeframe)
                 if stock_data is not None:
+                    # Fetch stock info using Yahoo Finance
+                    stock_info = yf.Ticker(asset_name)
+                    stock_data = stock_info.history(period=timeframe)
+
+                    # Update company_info dictionary with fetched data
                     company_info = {
                         'current_price': round(stock_data['Close'].iloc[-1], 2),
-                        'market_cap': 'N/A',  # Add more details if needed
-                        'pe_ratio': 'N/A',
-                        'high_52_week': 'N/A',
-                        'low_52_week': 'N/A',
-                        'description': 'N/A'
+                        'market_cap': stock_info.info.get('marketCap', 'N/A'),
+                        'pe_ratio': stock_info.info.get('trailingPE', 'N/A'),
+                        'high_52_week': stock_info.info.get('fiftyTwoWeekHigh', 'N/A'),
+                        'low_52_week': stock_info.info.get('fiftyTwoWeekLow', 'N/A'),
+                        'div_yield': stock_info.info.get('dividendYield', 'N/A')
                     }
                     graph_html = self.create_plot(stock_data, 'candlestick')
                 else:
@@ -214,8 +286,12 @@ class StockApp:
         elif 'action' in request.form:
             action = request.form.get('action')  # 'buy' or 'short'
             quantity = int(request.form.get('quantity', 0))
-            stop_loss = float(request.form.get('stop_loss', 0))  # New stop-loss field
-            take_profit = float(request.form.get('take_profit', 0))  # New take-profit field
+            stop_loss = request.form.get('stop_loss', '').strip()
+            take_profit = request.form.get('take_profit', '').strip()
+
+            # Validate and convert stop_loss and take_profit
+            stop_loss = float(stop_loss) if stop_loss else None
+            take_profit = float(take_profit) if take_profit else None
 
             # Ensure asset name and quantity are valid
             if asset_name and quantity > 0:
@@ -228,16 +304,20 @@ class StockApp:
                         if action == 'buy' and total_cost <= balance:
                             new_balance = balance - total_cost
                             self.cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, session['username']))
-                            self.cursor.execute("INSERT INTO portfolio (user_id, asset_name, quantity, purchase_price, position_type, stop_loss, take_profit) VALUES (?, ?, ?, ?, 'long', ?, ?)",
-                                           (session['user_id'], asset_name, quantity, current_price, stop_loss, take_profit))
+                            self.cursor.execute(
+                                "INSERT INTO portfolio (user_id, asset_name, quantity, purchase_price, position_type, stop_loss, take_profit) VALUES (?, ?, ?, ?, 'long', ?, ?)",
+                                (session['user_id'], asset_name, quantity, current_price, stop_loss, take_profit)
+                            )
                             self.conn.commit()
                             flash(f"Bought {quantity} shares of {asset_name} at ${current_price:.2f}.")
                         elif action == 'short' and balance >= total_cost * 0.3:
                             margin_reserve = total_cost * 0.3
                             new_balance = balance - margin_reserve
                             self.cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, session['username']))
-                            self.cursor.execute("INSERT INTO portfolio (user_id, asset_name, quantity, purchase_price, position_type, stop_loss, take_profit) VALUES (?, ?, ?, ?, 'short', ?, ?)",
-                                           (session['user_id'], asset_name, quantity, current_price, stop_loss, take_profit))
+                            self.cursor.execute(
+                                "INSERT INTO portfolio (user_id, asset_name, quantity, purchase_price, position_type, stop_loss, take_profit) VALUES (?, ?, ?, ?, 'short', ?, ?)",
+                                (session['user_id'], asset_name, quantity, current_price, stop_loss, take_profit)
+                            )
                             self.conn.commit()
                             flash(f"Short sold {quantity} shares of {asset_name} at ${current_price:.2f}.")
                         else:
@@ -309,7 +389,10 @@ class StockApp:
         balance = self.cursor.fetchone()[0]
 
         current_price = {}
+        price_change = {}
+        market_value = {}
         profit_loss = {}
+
         for position in positions:
             asset_name = position[2]
             quantity = position[3]
@@ -319,7 +402,10 @@ class StockApp:
             try:
                 live_price = round(yf.Ticker(asset_name).history(period='1d')['Close'].iloc[-1], 2)
                 current_price[asset_name] = live_price
-                
+
+                price_change[asset_name] = round(live_price - purchase_price, 2)
+                market_value[asset_name] = round(live_price * quantity, 2)
+
                 if position_type == 'long':
                     profit_loss[asset_name] = round((live_price - purchase_price) * quantity, 2)
                 elif position_type == 'short':
@@ -328,7 +414,14 @@ class StockApp:
                 flash(f'Error fetching price for {asset_name}: {str(e)}')
 
         self.conn.close()
-        return render_template('portfolio.html', positions=positions, balance=round(balance, 2), current_price=current_price, profit_loss=profit_loss)
+        return render_template('portfolio.html', 
+                            positions=positions, 
+                            balance=round(balance, 2), 
+                            current_price=current_price, 
+                            price_change=price_change, 
+                            market_value=market_value, 
+                            profit_loss=profit_loss)
+
 
     def articles(self):
         return render_template('articles.html')

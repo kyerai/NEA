@@ -22,7 +22,6 @@ c.execute('''
         asset_name TEXT,
         quantity INTEGER,
         purchase_price REAL,
-        purchase_date DATE,
         position_type TEXT,  
         stop_loss REAL,
         take_profit REAL,

@@ -244,6 +244,7 @@ class StockApp:
 
     def trade(self):
         if 'logged_in' not in session:
+            print("User not logged in; redirecting to login page.")
             return redirect('/login')
 
         self.conn = sqlite3.connect(self.db_path)
@@ -251,15 +252,35 @@ class StockApp:
 
         graph_html = None
         company_info = {}
-        asset_name = request.args.get('asset_name') or request.form.get('asset_name')
+
+        # Explicitly prioritize form data for asset_name
+        asset_name = request.form.get('asset_name') or request.args.get('asset_name', '').strip()
         timeframe = request.args.get('timeframe') or request.form.get('timeframe', '6mo')
 
+        # Prevent redirect loops if asset_name is missing
+        if not asset_name:
+            flash("Asset name is missing. Please enter a valid asset name.")
+            return render_template(
+                'trade.html',
+                balance=0,  # Default balance if it cannot be fetched
+                graph_html=None,
+                company_info={},
+                asset_name=None,
+                timeframe=timeframe,
+                assets=self.assets
+            )
+
         # Fetch user's balance
-        self.cursor.execute("SELECT balance FROM users WHERE username = ?", (session['username'],))
-        balance = self.cursor.fetchone()[0]
+        try:
+            self.cursor.execute("SELECT balance FROM users WHERE username = ?", (session['username'],))
+            balance = self.cursor.fetchone()[0]
+        except Exception as e:
+            flash("Error fetching user balance.")
+            print(f"Error: {e}")
+            return redirect('/login')
 
         # If search form is submitted, display stock info
-        if asset_name or 'search_stock' in request.form:
+        if 'search_stock' in request.form:
             try:
                 stock_data = self.fetch_stock_data(asset_name, timeframe)
                 if stock_data is not None:
@@ -267,7 +288,6 @@ class StockApp:
                     stock_info = yf.Ticker(asset_name)
                     stock_data = stock_info.history(period=timeframe)
 
-                    # Update company_info dictionary with fetched data
                     company_info = {
                         'current_price': round(stock_data['Close'].iloc[-1], 2),
                         'market_cap': stock_info.info.get('marketCap', 'N/A'),
@@ -283,8 +303,8 @@ class StockApp:
                 flash(f"Error fetching data for {asset_name}: {str(e)}")
 
         # If trade form is submitted, execute trade
-        elif 'action' in request.form:
-            action = request.form.get('action')  # 'buy' or 'short'
+        elif 'tradesubmitted' in request.form:
+            action = request.form.get('tradesubmitted')  # 'buy' or 'short'
             quantity = int(request.form.get('quantity', 0))
             stop_loss = request.form.get('stop_loss', '').strip()
             take_profit = request.form.get('take_profit', '').strip()
@@ -293,44 +313,55 @@ class StockApp:
             stop_loss = float(stop_loss) if stop_loss else None
             take_profit = float(take_profit) if take_profit else None
 
-            # Ensure asset name and quantity are valid
-            if asset_name and quantity > 0:
-                try:
-                    stock_data = self.fetch_stock_data(asset_name, '1d')
-                    if stock_data is not None:
-                        current_price = round(stock_data['Close'].iloc[-1], 2)
-                        total_cost = current_price * quantity
+            if quantity <= 0:
+                flash("Quantity must be greater than zero.")
+                return redirect('/trade')
 
-                        if action == 'buy' and total_cost <= balance:
-                            new_balance = balance - total_cost
-                            self.cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, session['username']))
-                            self.cursor.execute(
-                                "INSERT INTO portfolio (user_id, asset_name, quantity, purchase_price, position_type, stop_loss, take_profit) VALUES (?, ?, ?, ?, 'long', ?, ?)",
-                                (session['user_id'], asset_name, quantity, current_price, stop_loss, take_profit)
-                            )
-                            self.conn.commit()
-                            flash(f"Bought {quantity} shares of {asset_name} at ${current_price:.2f}.")
-                        elif action == 'short' and balance >= total_cost * 0.3:
-                            margin_reserve = total_cost * 0.3
-                            new_balance = balance - margin_reserve
-                            self.cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, session['username']))
-                            self.cursor.execute(
-                                "INSERT INTO portfolio (user_id, asset_name, quantity, purchase_price, position_type, stop_loss, take_profit) VALUES (?, ?, ?, ?, 'short', ?, ?)",
-                                (session['user_id'], asset_name, quantity, current_price, stop_loss, take_profit)
-                            )
-                            self.conn.commit()
-                            flash(f"Short sold {quantity} shares of {asset_name} at ${current_price:.2f}.")
-                        else:
-                            flash("Insufficient balance for this transaction.")
+            try:
+                # Fetch the exact current price right before placing the trade
+                stock_data = self.fetch_stock_data(asset_name, '1d')
+                if stock_data is not None:
+                    current_price = round(stock_data['Close'].iloc[-1], 2)
+                    total_cost = current_price * quantity
+
+                    if action == 'buy' and total_cost <= balance:
+                        new_balance = balance - total_cost
+                        self.cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, session['username']))
+                        self.cursor.execute(
+                            "INSERT INTO portfolio (user_id, asset_name, quantity, purchase_price, position_type, stop_loss, take_profit) VALUES (?, ?, ?, ?, 'long', ?, ?)",
+                            (session['user_id'], asset_name, quantity, current_price, stop_loss, take_profit)
+                        )
+                        self.conn.commit()
+                        flash(f"Bought {quantity} shares of {asset_name} at ${current_price:.2f}.")
+                    elif action == 'short' and balance >= total_cost * 0.3:
+                        margin_reserve = total_cost * 0.3
+                        new_balance = balance - margin_reserve
+                        self.cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, session['username']))
+                        self.cursor.execute(
+                            "INSERT INTO portfolio (user_id, asset_name, quantity, purchase_price, position_type, stop_loss, take_profit) VALUES (?, ?, ?, ?, 'short', ?, ?)",
+                            (session['user_id'], asset_name, quantity, current_price, stop_loss, take_profit)
+                        )
+                        self.conn.commit()
+                        flash(f"Short sold {quantity} shares of {asset_name} at ${current_price:.2f}.")
                     else:
-                        flash(f"Failed to fetch current price for {asset_name}.")
-                except Exception as e:
-                    flash(f"Error executing trade for {asset_name}: {str(e)}")
-            else:
-                flash("Please enter a valid asset name and quantity.")
+                        flash("Insufficient balance for this transaction.")
+                else:
+                    flash(f"Failed to fetch current price for {asset_name}.")
+            except Exception as e:
+                flash(f"Error executing trade for {asset_name}: {str(e)}")
+
 
         self.conn.close()
-        return render_template('trade.html', balance=round(balance, 2), graph_html=graph_html, company_info=company_info, asset_name=asset_name, timeframe=timeframe, assets=self.assets)
+        return render_template(
+            'trade.html',
+            balance=round(balance, 2),
+            graph_html=graph_html,
+            company_info=company_info,
+            asset_name=asset_name,
+            timeframe=timeframe,
+            assets=self.assets
+        )
+
 
     def portfolio(self):
         if 'logged_in' not in session:

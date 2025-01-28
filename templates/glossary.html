@@ -1,48 +1,41 @@
-{% extends "base.html" %}
-{% block content %}
-<section>
-    <h1>Glossary of Trading Terms</h1>
-    <form method="GET" action="/glossary">
-        <input type="text" name="search" placeholder="Search Terms..." class="search-box" value="{{ request.args.get('search', '') }}">
-        <button type="submit" class="btn">Search</button>
-    </form>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dictionary | Education</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <div>
+            <a href="/home">Home</a>
+            <a href="/articles">Articles</a>
+        </div>
+    </header>
 
-    <ul id="glossary-list">
-        <!-- Glossary Terms -->
-        <li><strong>Stock:</strong> Ownership in a company.</li>
-        <li><strong>Dividend:</strong> A company's profit distribution to shareholders.</li>
-        <li><strong>Bear Market:</strong> A market in decline, characterized by falling prices.</li>
-        <li><strong>Bull Market:</strong> A market characterized by rising prices.</li>
-        <li><strong>Short Selling:</strong> Selling a stock you don't own, with the intention of buying it back at a lower price.</li>
-        <li><strong>Margin Trading:</strong> Borrowing money to trade stocks.</li>
-        <li><strong>Volatility:</strong> A measure of how much a stock's price fluctuates.</li>
-        <li><strong>Liquidity:</strong> How easily a stock can be bought or sold without affecting its price.</li>
-        <li><strong>Resistance Level:</strong> A price level at which a stock tends to stop rising.</li>
-        <li><strong>Support Level:</strong> A price level at which a stock tends to stop falling.</li>
-        <li><strong>Market Capitalization:</strong> The total value of a company's outstanding shares.</li>
-        <li><strong>PE Ratio:</strong> Price-to-earnings ratio, a measure of a stock's valuation.</li>
-        <li><strong>Volume:</strong> The number of shares traded in a stock.</li>
-        <li><strong>Index:</strong> A benchmark that tracks the performance of a group of stocks.</li>
-        <li><strong>ETF:</strong> Exchange-traded fund, a collection of stocks or bonds traded on an exchange.</li>
-        <li><strong>Options:</strong> Contracts that give the holder the right, but not the obligation, to buy or sell a stock at a specific price.</li>
-        <li><strong>Futures:</strong> Contracts to buy or sell an asset at a future date for a predetermined price.</li>
-        <li><strong>Short Squeeze:</strong> A situation where short sellers are forced to buy back shares, driving the stock price higher.</li>
-        <li><strong>Market Maker:</strong> A firm that provides liquidity by buying and selling securities.</li>
-        <li><strong>Day Trader:</strong> A trader who buys and sells stocks within the same trading day.</li>
-        <li><strong>Swing Trader:</strong> A trader who holds stocks for a few days to a few weeks.</li>
-        <li><strong>Position Trader:</strong> A trader who holds stocks for weeks to months.</li>
-        <li><strong>Scalper:</strong> A trader who makes many small trades to profit from small price movements.</li>
-        <li><strong>Algorithmic Trading:</strong> Trading done by computer algorithms based on predefined rules.</li>
-        <li><strong>Technical Analysis:</strong> Analysis of stock price charts and indicators to make trading decisions.</li>
-        <li><strong>Fundamental Analysis:</strong> Analysis of a company's financial health and market conditions to determine stock value.</li>
-        <li><strong>Market Sentiment:</strong> The overall feeling or attitude of investors towards a market or stock.</li>
-        <li><strong>Volatility Index (VIX):</strong> A measure of market volatility and investor sentiment.</li>
-        <li><strong>Arbitrage:</strong> Profiting from price differences of the same asset in different markets.</li>
-        <li><strong>Market Timing:</strong> The strategy of buying and selling stocks based on predictions of market movements.</li>
-        <li><strong>Market Order:</strong> An order to buy or sell a stock at the current market price.</li>
-        <li><strong>Limit Order:</strong> An order to buy or sell a stock at a specific price or better.</li>
-        <li><strong>Stop Order:</strong> An order to buy or sell a stock once it reaches a certain price.</li>
-        <li><strong>Trailing Stop Order:</strong> A stop order that adjusts with the stock price to lock in profits or limit losses.</li>
-    </ul>
-</section>
-{% endblock %}
+    <main class="content">
+        <section class="section">
+            <h1>Financial Dictionary</h1>
+            <form method="POST" action="/glossary">
+                <label for="search">Search a Term:</label>
+                <input type="text" id="search" name="search" placeholder="Enter a financial term" required>
+                <button type="submit" class="btn">Search</button>
+            </form>
+
+            {% if search_query %}
+                <h2>Search Results for "{{ search_query }}"</h2>
+                {% if results %}
+                    <ul>
+                        {% for term, definition in results.items() %}
+                            <li><strong>{{ term }}</strong>: {{ definition }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No results found for "{{ search_query }}".</p>
+                {% endif %}
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

@@ -1,99 +1,32 @@
-{% extends "base.html" %}
-{% block content %}
-<section>
-    <h1>Trading Education</h1>
-    
-    <!-- Section 1: Introduction to Trading -->
-    <h2>Introduction to Trading</h2>
-    <article>
-        <h3>What is a Stock?</h3>
-        <p>A stock represents ownership in a company. When you buy a stock, you own a part of that company and are entitled to a portion of its profits...</p>
-    </article>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learn | Education</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <div>
+            <a href="/home">Home</a>
+            <a href="/glossary">Dictionary</a>
+        </div>
+    </header>
 
-    <article>
-        <h3>What is a Trade?</h3>
-        <p>A trade is the buying or selling of stocks in the market. You can trade manually or automatically using algorithms...</p>
-    </article>
-
-    <!-- Add more articles to Section 1 -->
-    <article>
-        <h3>Types of Trading</h3>
-        <p>There are different types of trading strategies, including day trading, swing trading, and position trading. Each strategy has its own risk and reward profile...</p>
-    </article>
-
-    <article>
-        <h3>Market Order vs. Limit Order</h3>
-        <p>A market order is an order to buy or sell a stock at the current market price, while a limit order is an order to buy or sell at a specific price or better...</p>
-    </article>
-
-    <article>
-        <h3>Long vs. Short Trading</h3>
-        <p>Long trading involves buying a stock with the expectation that its price will rise, while short trading involves selling a stock with the expectation that its price will fall...</p>
-    </article>
-
-    <article>
-        <h3>Understanding Volatility</h3>
-        <p>Volatility measures how much a stock's price fluctuates. High volatility stocks can offer greater profit potential but also higher risk...</p>
-    </article>
-
-    <!-- Section 2: Risk Management -->
-    <h2>Risk Management</h2>
-    <article>
-        <h3>Understanding Risk</h3>
-        <p>Risk in trading is the possibility of losing part or all of your investment. Managing risk effectively is crucial for success in trading...</p>
-    </article>
-
-    <article>
-        <h3>Position Sizing</h3>
-        <p>Position sizing refers to how much of your portfolio is invested in a particular trade. Proper position sizing helps control risk...</p>
-    </article>
-
-    <!-- Add more articles to Section 2 -->
-    <article>
-        <h3>Stop Loss Orders</h3>
-        <p>A stop loss order is an order to sell a stock once it reaches a certain price. It helps limit losses and protect your capital...</p> 
-    </article>
-
-    <article>
-        <h3>Risk-Reward Ratio</h3>
-        <p>The risk-reward ratio is a measure of the potential profit compared to the potential loss in a trade. A good risk-reward ratio can help increase profitability...</p>
-    </article>
-
-    <article>
-        <h3>Emotional Discipline</h3>
-        <p>Emotional discipline is the ability to control your emotions and stick to your trading plan. Emotional discipline is essential for successful trading...</p>
-    </article>
-
-
-    <!-- Section 3: Market Analysis -->
-    <h2>Market Analysis</h2>
-    <article>
-        <h3>Technical Analysis</h3>
-        <p>Technical analysis involves using price charts and indicators to make trading decisions. Traders use trends, support and resistance levels...</p>
-    </article>
-
-    <article>
-        <h3>Fundamental Analysis</h3>
-        <p>Fundamental analysis looks at the financial health of a company to determine the value of its stock. This includes studying earnings reports...</p>
-    </article>
-
-    <article>
-        <h3>Market Sentiment</h3>
-        <p>Market sentiment refers to the overall feeling or attitude of investors towards a market or stock. Positive sentiment can drive prices higher...</p> 
-    </article>
-
-
-    <!-- Continue expanding sections for Advanced Strategies and Trading Psychology -->
-    <!-- Add more articles to Section 3 -->
-    <article>
-        <h3>Market Timing</h3>
-        <p>Market timing involves buying and selling stocks based on predictions of market movements. Timing the market correctly can lead to profitable trades...</p>
-    </article>
-
-    <article>
-        <h3>Trading Psychology</h3>
-        <p>Trading psychology is the study of emotions and mental states that influence trading decisions. Understanding and managing emotions is key to successful trading...</p> 
-    </article>
-
-</section>
-{% endblock %}
+    <main class="content">
+        <section class="section">
+            <h1>Learn the Basics of Investing</h1>
+            <div class="articles">
+                {% for article in articles %}
+                    <article class="article">
+                        <h2>{{ article.title }}</h2>
+                        <p>{{ article.content }}</p>
+                        <p><strong>Author:</strong> {{ article.author }} | <strong>Date:</strong> {{ article.date }}</p>
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+</body>
+</html>

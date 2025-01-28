@@ -51,7 +51,7 @@ class StockApp:
         self.app.route('/trade', methods=['GET', 'POST'])(self.trade)
         self.app.route('/portfolio', methods=['GET', 'POST'])(self.portfolio)
         self.app.route('/articles')(self.articles)
-        self.app.route('/glossary')(self.glossary)
+        self.app.route('/glossary', methods=['GET', 'POST'])(self.glossary)
 
     def index(self):
         return render_template('index.html')
@@ -257,9 +257,9 @@ class StockApp:
         asset_name = request.form.get('asset_name') or request.args.get('asset_name', '').strip()
         timeframe = request.args.get('timeframe') or request.form.get('timeframe', '6mo')
 
-        # Prevent redirect loops if asset_name is missing
-        if not asset_name:
-            flash("Asset name is missing. Please enter a valid asset name.")
+        # Prevent redirect loops if asset_name is missing and no trade or search actions
+        if not asset_name and 'search_stock' not in request.form and 'tradesubmitted' not in request.form:
+            flash("Asset name is missing. Please select or enter a valid asset name.")
             return render_template(
                 'trade.html',
                 balance=0,  # Default balance if it cannot be fetched
@@ -279,12 +279,31 @@ class StockApp:
             print(f"Error: {e}")
             return redirect('/login')
 
+        # Handle graph and company overview for asset_name from sidebar
+        if asset_name and 'search_stock' not in request.form and 'tradesubmitted' not in request.form:
+            try:
+                stock_data = self.fetch_stock_data(asset_name, timeframe)
+                if stock_data is not None:
+                    stock_info = yf.Ticker(asset_name)
+                    company_info = {
+                        'current_price': round(stock_data['Close'].iloc[-1], 2),
+                        'market_cap': stock_info.info.get('marketCap', 'N/A'),
+                        'pe_ratio': stock_info.info.get('trailingPE', 'N/A'),
+                        'high_52_week': stock_info.info.get('fiftyTwoWeekHigh', 'N/A'),
+                        'low_52_week': stock_info.info.get('fiftyTwoWeekLow', 'N/A'),
+                        'div_yield': stock_info.info.get('dividendYield', 'N/A')
+                    }
+                    graph_html = self.create_plot(stock_data, 'candlestick')
+                else:
+                    flash(f"Failed to fetch data for {asset_name}.")
+            except Exception as e:
+                flash(f"Error fetching data for {asset_name}: {str(e)}")
+
         # If search form is submitted, display stock info
         if 'search_stock' in request.form:
             try:
                 stock_data = self.fetch_stock_data(asset_name, timeframe)
                 if stock_data is not None:
-                    # Fetch stock info using Yahoo Finance
                     stock_info = yf.Ticker(asset_name)
                     stock_data = stock_info.history(period=timeframe)
 
@@ -350,7 +369,6 @@ class StockApp:
             except Exception as e:
                 flash(f"Error executing trade for {asset_name}: {str(e)}")
 
-
         self.conn.close()
         return render_template(
             'trade.html',
@@ -361,6 +379,7 @@ class StockApp:
             timeframe=timeframe,
             assets=self.assets
         )
+
 
 
     def portfolio(self):
@@ -455,10 +474,124 @@ class StockApp:
 
 
     def articles(self):
-        return render_template('articles.html')
+        articles = [
+            {
+                'title': 'Introduction to Stocks',
+                'content': 'Stocks represent ownership in a company. They are a way for companies to raise capital...',
+                'author': 'Author Name',
+                'date': '2025-01-27'
+            },
+            {
+                'title': 'Understanding Dividends',
+                'content': 'Dividends are payments made by companies to their shareholders as a share of profits...',
+                'author': 'Author Name',
+                'date': '2025-01-26'
+            },
+            {
+                'title': 'An Overview of ETFs',
+                'content': 'Exchange-traded funds (ETFs) are a type of investment fund and exchange-traded product...',
+                'author': 'Author Name',
+                'date': '2025-01-25'
+            },
+            {
+                'title': 'Introduction to Bonds',
+                'content': 'Bonds are fixed-income investments that represent a loan made by an investor to a borrower...',
+                'author': 'Author Name',
+                'date': '2025-01-24'
+            },
+            {
+                'title': 'Stock Market Volatility',
+                'content': 'Volatility is a statistical measure of the dispersion of returns for a given security or market index...',
+                'author': 'Author Name',
+                'date': '2025-01-23'
+            },
+            {
+                'title': 'Understanding Market Capitalization',
+                'content': 'Market capitalization is the total value of a company’s outstanding shares of stock...',
+                'author': 'Author Name',
+                'date': '2025-01-22'
+            },
+            {
+                'title': 'Introduction to Technical Analysis',
+                'content': 'Technical analysis is a method of evaluating securities by analyzing statistics generated by market activity...',
+                'author': 'Author Name',
+                'date': '2025-01-21'
+            },
+            {
+                'title': 'Fundamental Analysis Explained',
+                'content': 'Fundamental analysis is a method of evaluating a security by attempting to measure its intrinsic value...',
+                'author': 'Author Name',
+                'date': '2025-01-20'
+            },
+            {
+                'title': 'An Overview of Options Trading',
+                'content': 'Options trading involves buying and selling options contracts on the stock market...',
+                'author': 'Author Name',
+                'date': '2025-01-19'
+            },
+            {
+                'title': 'Introduction to Forex Trading',
+                'content': 'Forex trading, also known as foreign exchange trading or currency trading, involves buying and selling...',
+                'author': 'Author Name',
+                'date': '2025-01-18'
+            }
+        ]
+
+        return render_template('articles.html', articles=articles)
 
     def glossary(self):
-        return render_template('glossary.html')
+        terms = {
+            'stock': 'A stock is a type of investment that represents ownership in a company.',
+            'bond': 'A bond is a fixed-income investment that represents a loan made by an investor to a borrower.',
+            'dividend': 'A dividend is the distribution of some of a company’s earnings to a class of its shareholders.',
+            'ETF': 'An exchange-traded fund (ETF) is a type of investment fund and exchange-traded product, with shares that trade like a stock on an exchange.',
+            'portfolio': 'A portfolio is a collection of financial investments like stocks, bonds, commodities, cash, and cash equivalents.',
+            'volatility': 'Volatility is a statistical measure of the dispersion of returns for a given security or market index.',
+            'liquidity': 'Liquidity refers to how easily an asset or security can be bought or sold in the market without affecting the asset’s price.',
+            'market_cap': 'Market capitalization is the total value of a company’s outstanding shares of stock, calculated by multiplying the current share price by the total number of shares outstanding.',
+            'PE_ratio': 'The price-to-earnings (P/E) ratio is a valuation ratio that shows how much investors are willing to pay per dollar of a company’s earnings.',
+            'dividend_yield': 'Dividend yield is a financial ratio that shows how much a company pays out in dividends each year relative to its stock price.',
+            'short_selling': 'Short selling is a trading strategy that involves borrowing shares of a security and selling them in the market with the hope of buying them back at a lower price.',
+            'margin_call': 'A margin call is a broker’s demand for an investor to deposit additional money or securities to cover possible losses.',
+            'stop_loss': 'A stop-loss order is an order placed with a broker to buy or sell a security when it reaches a certain price.',
+            'take_profit': 'A take-profit order is a type of limit order that specifies the exact price at which to close out an open position for a profit.',
+            'long_position': 'A long position is the buying of a security such as a stock, commodity, or currency with the expectation that the asset will rise in value.',
+            'short_position': 'A short position is the sale of a borrowed security, commodity, or currency with the expectation that the asset will fall in value.',
+            'market_order': 'A market order is an order to buy or sell a security immediately at the best available current price.',
+            'limit_order': 'A limit order is an order to buy or sell a security at a specific price or better.',
+            'day_trading': 'Day trading is a trading strategy that involves buying and selling financial instruments within the same trading day.',
+            'swing_trading': 'Swing trading is a trading strategy that involves holding positions for longer than a day, but shorter than weeks or months.',
+            'scalping': 'Scalping is a trading strategy that involves making small profits from small price changes in a security.',
+            'technical_analysis': 'Technical analysis is a method of evaluating securities by analyzing statistics generated by market activity, such as past prices and volume.',
+            'fundamental_analysis': 'Fundamental analysis is a method of evaluating a security by attempting to measure its intrinsic value by examining related economic, financial, and other qualitative and quantitative factors.',
+            'moving_average': 'A moving average is a widely used indicator in technical analysis that helps smooth out past price data to create a trend-following indicator.',
+            'RSI': 'The Relative Strength Index (RSI) is a momentum oscillator that measures the speed and change of price movements.',
+            'MACD': 'The Moving Average Convergence Divergence (MACD) is a trend-following momentum indicator that shows the relationship between two moving averages of a security’s price.',
+            'support_resistance': 'Support and resistance are price levels where a stock often reverses direction, marked by previous highs and lows.',
+            'volatility_index': 'A volatility index is a measure of market expectations of near-term volatility conveyed by stock index option prices.',
+            'beta': 'Beta is a measure of a stock’s volatility in relation to the overall market.',
+            'alpha': 'Alpha is a measure of an investment’s performance compared to a benchmark index, typically the S&P 500.',
+            'gamma': 'Gamma is a measure of how fast an option’s delta changes with respect to the underlying asset’s price.',
+            'delta': 'Delta is a measure of how much the price of an option changes when the price of the underlying asset changes.',
+            'theta': 'Theta is a measure of the rate of decline in the value of an option over time.',
+            'vega': 'Vega is a measure of the sensitivity of an option’s price to changes in implied volatility.',
+            'implied_volatility': 'Implied volatility is a measure of the market’s expectation of future volatility of the underlying asset, as implied by the prices of options.',
+            'liquidity_ratio': 'The liquidity ratio is a financial metric that measures a company’s ability to pay off its short-term debts with its liquid assets.',
+            'current_ratio': 'The current ratio is a financial metric that measures a company’s ability to pay off its short-term liabilities with its short-term assets.',
+        }
+
+        search_query = request.form.get('search', '').strip().lower()
+        results = []
+
+        if search_query:
+            # Perform a partial match against term names only
+            results = {
+                term: definition
+                for term, definition in terms.items()
+                if search_query in term.lower()
+            }
+
+        return render_template('glossary.html', results=results, search_query=search_query)
 
 if __name__ == '__main__':
     stock_app = StockApp()

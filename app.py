@@ -23,6 +23,57 @@ class StockApp:
         self.conn = None
         self.cursor = None
 
+        self.articles_list = [
+            {
+            'id': 1,
+            'title': 'Introduction to Stocks',
+            'content': 'Stocks represent ownership in a company and allow investors to share in a company\'s profits. When you purchase a stock, you become a shareholder, meaning you own a fraction of that company. Companies issue stocks to raise capital for expansion or operations.\n\nWhy Invest in Stocks?\n- Stocks offer higher long-term returns than most other asset classes.\n- They help build wealth and fight inflation.\n- Dividend-paying stocks provide passive income.',
+            'author': 'John Doe',
+            'date': '2025-01-27',
+            'video_url': 'https://www.youtube.com/embed/p7HKvqRI_Bo?si=JvwqpSp5Qt50uA1_'
+            },
+            {
+            'id': 2,
+            'title': 'Understanding Dividends',
+            'content': 'A dividend is a portion of a company’s earnings paid to shareholders, usually quarterly. Dividends provide steady income and are common among well-established companies.\n\nTypes of Dividends:\n- Cash Dividends: Direct payments to shareholders.\n- Stock Dividends: Additional shares instead of cash.\n- Special Dividends: One-time extra payments.\n\nCompanies with a high dividend yield are often financially stable, but investors must analyze the dividend payout ratio to ensure sustainability.',
+            'author': 'Jane Smith',
+            'date': '2025-01-26',
+            'video_url': 'https://www.youtube.com/embed/zd0n2rpt_qM?si=LbLcEC4it8yLPxNe'
+            },
+            {
+            'id': 3,
+            'title': 'Introduction to Bonds',
+            'content': 'Bonds are fixed-income securities that represent a loan made by an investor to a borrower. When you buy a bond, you are lending money to the issuer in exchange for periodic interest payments and the return of the bond’s face value when it matures.\n\nKey Features of Bonds:\n- Face Value: The amount the bond will be worth at maturity.\n- Coupon Rate: The interest rate paid by the bond.\n- Maturity Date: When the bond issuer repays the principal to the bondholder.\n\nBonds are considered safer investments than stocks, but they offer lower returns.',
+            'author': 'Alice Johnson',
+            'date': '2025-01-25',
+            'video_url': 'https://www.youtube.com/embed/vAdn7aLHpO0?si=S_poiz2UtqHk_GyF'
+            },
+            {
+            'id': 4,
+            'title': 'ETFs Explained',
+            'content': 'Exchange-Traded Funds (ETFs) are investment funds that trade on stock exchanges like individual stocks. ETFs hold assets such as stocks, commodities, or bonds and usually track an underlying index.\n\nAdvantages of ETFs:\n- Diversification: ETFs provide exposure to a broad range of assets.\n- Liquidity: ETFs can be bought and sold throughout the trading day.\n- Low Costs: ETFs often have lower fees than mutual funds.\n\nPopular ETFs include the SPDR S&P 500 ETF (SPY) and the Invesco QQQ Trust (QQQ).',
+            'author': 'Bob Williams',
+            'date': '2025-01-24',
+            'video_url': 'https://www.youtube.com/embed/OwpFBi-jZVg?si=ptYb0xZ5WThsxhqj'
+            },
+            {
+            'id': 5,
+            'title': 'Introduction to Options Trading',
+            'content': 'Options are derivatives that give investors the right, but not the obligation, to buy or sell an underlying asset at a specific price by a certain date. Options are used for hedging, speculation, and income generation.\n\nTypes of Options:\n- Call Options: Give the right to buy the underlying asset.\n- Put Options: Give the right to sell the underlying asset.\n\nOptions trading involves understanding strike prices, expiration dates, and option premiums.',
+            'author': 'Sarah Brown',
+            'date': '2025-01-23',
+            'video_url': 'https://www.youtube.com/embed/VJgHkAqohbU?si=FxYKPz6FvWOuMneq'
+            },
+            {
+            'id': 6,
+            'title': 'The 2008 Financial Crisis Explained',
+            'content': 'The 2008 financial crisis was the worst economic disaster since the Great Depression of 1929. It was triggered by the subprime mortgage crisis in the United States, leading to a global recession.\n\nKey Events:\n- Housing Bubble: Rapidly rising home prices and risky lending practices.\n- Subprime Mortgages: High-risk loans given to borrowers with poor credit.\n- Lehman Brothers Bankruptcy: Major investment bank collapse in September 2008.\n\nThe crisis led to bank failures, stock market crashes, and government bailouts.',
+            'author': 'Michael Johnson',
+            'date': '2025-01-22',
+            'video_url': 'https://www.youtube.com/embed/GPOv72Awo68?si=f0BMAsPc6dfcrZx3'
+            }
+        ]
+
         # Start background monitoring thread
         self.start_price_monitoring()
 
@@ -52,6 +103,8 @@ class StockApp:
         self.app.route('/portfolio', methods=['GET', 'POST'])(self.portfolio)
         self.app.route('/articles')(self.articles)
         self.app.route('/glossary', methods=['GET', 'POST'])(self.glossary)
+        self.app.route('/article/<int:article_id>')(self.article_detail)
+        self.app.route('/articles')(self.articles)
 
     def index(self):
         return render_template('index.html')
@@ -473,71 +526,24 @@ class StockApp:
                             profit_loss=profit_loss)
 
 
+   
     def articles(self):
-        articles = [
-            {
-                'title': 'Introduction to Stocks',
-                'content': 'Stocks represent ownership in a company. They are a way for companies to raise capital...',
-                'author': 'Author Name',
-                'date': '2025-01-27'
-            },
-            {
-                'title': 'Understanding Dividends',
-                'content': 'Dividends are payments made by companies to their shareholders as a share of profits...',
-                'author': 'Author Name',
-                'date': '2025-01-26'
-            },
-            {
-                'title': 'An Overview of ETFs',
-                'content': 'Exchange-traded funds (ETFs) are a type of investment fund and exchange-traded product...',
-                'author': 'Author Name',
-                'date': '2025-01-25'
-            },
-            {
-                'title': 'Introduction to Bonds',
-                'content': 'Bonds are fixed-income investments that represent a loan made by an investor to a borrower...',
-                'author': 'Author Name',
-                'date': '2025-01-24'
-            },
-            {
-                'title': 'Stock Market Volatility',
-                'content': 'Volatility is a statistical measure of the dispersion of returns for a given security or market index...',
-                'author': 'Author Name',
-                'date': '2025-01-23'
-            },
-            {
-                'title': 'Understanding Market Capitalization',
-                'content': 'Market capitalization is the total value of a company’s outstanding shares of stock...',
-                'author': 'Author Name',
-                'date': '2025-01-22'
-            },
-            {
-                'title': 'Introduction to Technical Analysis',
-                'content': 'Technical analysis is a method of evaluating securities by analyzing statistics generated by market activity...',
-                'author': 'Author Name',
-                'date': '2025-01-21'
-            },
-            {
-                'title': 'Fundamental Analysis Explained',
-                'content': 'Fundamental analysis is a method of evaluating a security by attempting to measure its intrinsic value...',
-                'author': 'Author Name',
-                'date': '2025-01-20'
-            },
-            {
-                'title': 'An Overview of Options Trading',
-                'content': 'Options trading involves buying and selling options contracts on the stock market...',
-                'author': 'Author Name',
-                'date': '2025-01-19'
-            },
-            {
-                'title': 'Introduction to Forex Trading',
-                'content': 'Forex trading, also known as foreign exchange trading or currency trading, involves buying and selling...',
-                'author': 'Author Name',
-                'date': '2025-01-18'
-            }
-        ]
 
-        return render_template('articles.html', articles=articles)
+        return render_template('articles.html', articles=self.articles_list)
+
+    def article_detail(self, article_id):
+        articles_list = self.articles_list
+
+        # Fetch the article
+        article = next((article for article in articles_list if article['id'] == article_id), None)
+
+        # Redirect if article doesn't exist
+        if not article:
+            return redirect(url_for('articles'))
+
+        # Render the template with full article details
+        return render_template('article_detail.html', article=article)
+
 
     def glossary(self):
         terms = {

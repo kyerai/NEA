@@ -79,7 +79,7 @@ class StockApp:
 
     def connect_db(self):
         conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row  # Ensures results are dictionary-like
+        conn.row_factory = sqlite3.Row  # Enables dictionary-like access
         return conn
 
     def generate_salt(self, length=16):
@@ -93,6 +93,16 @@ class StockApp:
         for char in combined:
             hash_value = (hash_value * 31 + ord(char)) % (10**9 + 7)  # Simple hashing logic
         return str(hash_value)
+    
+    def get_live_price(self, ticker):
+        """Fetch the latest stock price using Yahoo Finance."""
+        try:
+            stock = yf.Ticker(ticker)
+            live_price = stock.history(period='1d')['Close'].iloc[-1]
+            return round(live_price, 2)
+        except Exception as e:
+            print(f"Error fetching price for {ticker}: {e}")
+            return None
 
     def run(self):
         self.register_routes()
@@ -606,22 +616,54 @@ class StockApp:
         if 'logged_in' not in session or session.get('role') != 'teacher':
             return redirect(url_for('login'))
         
-        with self.connect_db() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT name FROM classrooms WHERE id = ? AND teacher_id = ?", (classroom_id, session['user_id']))
-            classroom = cursor.fetchone()
-            
-            if not classroom:
-                flash('Invalid classroom or permission denied.')
-                return redirect(url_for('manage_classrooms'))
-            
-            cursor.execute("SELECT users.id, users.username FROM classroom_members JOIN users ON classroom_members.student_id = users.id WHERE classroom_members.classroom_id = ?", (classroom_id,))
-            students = cursor.fetchall()
-            
-            cursor.execute("SELECT users.username, portfolio.* FROM users LEFT JOIN portfolio ON users.id = portfolio.user_id WHERE users.id IN (SELECT student_id FROM classroom_members WHERE classroom_id = ?)", (classroom_id,))
-            student_portfolios = cursor.fetchall()
+        conn = self.connect_db()
+        c = conn.cursor()
+        c.execute("SELECT id, name FROM classrooms WHERE id = ? AND teacher_id = ?", (classroom_id, session['user_id']))
+        classroom = c.fetchone()
         
-        return render_template('track_students.html', classroom_name=classroom[0], students=students, student_portfolios=student_portfolios)
+        if not classroom:
+            flash('Invalid classroom or permission denied.')
+            return redirect(url_for('manage_classrooms'))
+        
+        print(f"Debug: Retrieved Classroom - {dict(classroom)}")
+        
+        sort_by = request.args.get('sort_by', 'total')
+        order_column = "total_value" if sort_by == "total" else "percentage_gain"
+        
+        c.execute("SELECT users.id, users.username, users.balance FROM users LEFT JOIN classroom_members ON users.id = classroom_members.student_id WHERE classroom_members.classroom_id = ?", (classroom_id,))
+        students = [dict(row) for row in c.fetchall()]
+        
+        student_rankings = []
+        for student in students:
+            c.execute("SELECT asset_name, quantity, purchase_price FROM portfolio WHERE user_id = ?", (student['id'],))
+            positions = c.fetchall()
+            
+            total_portfolio_value = student['balance']  # Start with available cash balance
+            total_investment = 0
+            for position in positions:
+                live_price = self.get_live_price(position['asset_name'])
+                if live_price:
+                    position_value = position['quantity'] * live_price
+                    total_portfolio_value += position_value
+                    total_investment += position['quantity'] * position['purchase_price']
+            
+            profit_loss = total_portfolio_value - (total_investment + student['balance'])
+            percentage_gain = ((profit_loss / (total_investment + student['balance'])) * 100) if (total_investment + student['balance']) > 0 else 0
+            
+            student_rankings.append({
+                'username': student['username'],
+                'total_value': total_portfolio_value,
+                'profit_loss': profit_loss,
+                'percentage_gain': percentage_gain
+            })
+        
+        student_rankings.sort(key=lambda x: x[order_column], reverse=True)
+        
+        print(f"Debug: Retrieved Student Rankings - {student_rankings}")
+        
+        conn.close()
+        
+        return render_template('track_students.html', classroom_name=classroom['name'], student_rankings=student_rankings, sort_by=sort_by)
 
 
 if __name__ == '__main__':

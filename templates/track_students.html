@@ -4,36 +4,111 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Track Students</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+            color: #1a202c;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        .container {
+            width: 90%;
+            max-width: 800px;
+            background: #ffffff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        h2, h3 {
+            text-align: center;
+            color: #2d3748;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        
+        table, th, td {
+            border: 1px solid #cbd5e0;
+        }
+        
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #2b6cb0;
+            color: white;
+        }
+        
+        .positive { color: green; }
+        .negative { color: red; }
+        
+        select {
+            padding: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #cbd5e0;
+            margin-bottom: 1rem;
+        }
+        
+        a {
+            display: block;
+            text-align: center;
+            margin-top: 1rem;
+            color: #2b6cb0;
+            text-decoration: none;
+            font-weight: 500;
+        }
+    </style>
 </head>
 <body>
-    <h2>Classroom: {{ classroom_name }}</h2>
-    <h3>Students</h3>
-    <ul>
-        {% for student in students %}
-            <li>{{ student.username }}</li>
-        {% endfor %}
-    </ul>
-    
-    <h3>Student Portfolios</h3>
-    <table border="1">
-        <tr>
-            <th>Username</th>
-            <th>Asset Name</th>
-            <th>Quantity</th>
-            <th>Purchase Price</th>
-            <th>Position Type</th>
-        </tr>
-        {% for portfolio in student_portfolios %}
-        <tr>
-            <td>{{ portfolio.username }}</td>
-            <td>{{ portfolio.asset_name }}</td>
-            <td>{{ portfolio.quantity }}</td>
-            <td>{{ portfolio.purchase_price }}</td>
-            <td>{{ portfolio.position_type }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-    
-    <a href="/manage_classrooms">Back to Classrooms</a>
+    <div class="container">
+        <h2>{{ classroom_name }} - Student Rankings</h2>
+        
+        <form method="get">
+            <label for="sort_by">Sort By:</label>
+            <select id="sort_by" name="sort_by" onchange="this.form.submit()">
+                <option value="percentage" {% if sort_by == 'percentage' %}selected{% endif %}>Percentage Gain/Loss</option>
+                <option value="total" {% if sort_by == 'total' %}selected{% endif %}>Total Portfolio Value</option>
+            </select>
+        </form>
+        
+        <table>
+            <tr>
+                <th>Rank</th>
+                <th>Username</th>
+                <th>Total Portfolio Value</th>
+                <th>Profit/Loss</th>
+                <th>Percentage Gain/Loss</th>
+            </tr>
+            {% for student in student_rankings %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ student.username }}</td>
+                <td>${{ '%.2f' | format(student.total_value or 0) }}</td>
+                <td class="{% if student.profit_loss >= 0 %}positive{% else %}negative{% endif %}">
+                    ${{ '%.2f' | format(student.profit_loss or 0) }}
+                </td>
+                <td class="{% if student.percentage_gain >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ '%.2f' | format(student.percentage_gain or 0) }}%
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+        <a href="/manage_classrooms">Back to Classrooms</a>
+    </div>
 </body>
 </html>

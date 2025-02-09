@@ -4,14 +4,86 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Classroom</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+            color: #1a202c;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        .container {
+            width: 90%;
+            max-width: 400px;
+            background: #ffffff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        h2 {
+            color: #2d3748;
+        }
+        
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        label {
+            font-weight: bold;
+            text-align: left;
+        }
+        
+        input {
+            padding: 0.75rem;
+            border-radius: 6px;
+            border: 1px solid #cbd5e0;
+            font-size: 1rem;
+        }
+        
+        button {
+            padding: 0.75rem;
+            background-color: #2b6cb0;
+            color: white;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #2c5282;
+        }
+        
+        a {
+            display: block;
+            margin-top: 1rem;
+            text-decoration: none;
+            color: #2b6cb0;
+            font-weight: 500;
+        }
+    </style>
 </head>
 <body>
-    <h2>Create a Classroom</h2>
-    <form action="/create_classroom" method="POST">
-        <label for="name">Classroom Name:</label>
-        <input type="text" id="name" name="name" required>
-        <button type="submit">Create Classroom</button>
-    </form>
-    <a href="/manage_classrooms">Manage Classrooms</a>
+    <div class="container">
+        <h2>Create a Classroom</h2>
+        <form action="/create_classroom" method="POST">
+            <label for="name">Classroom Name:</label>
+            <input type="text" id="name" name="name" required>
+            <button type="submit">Create Classroom</button>
+        </form>
+        <a href="/manage_classrooms">Manage Classrooms</a>
+    </div>
 </body>
 </html>

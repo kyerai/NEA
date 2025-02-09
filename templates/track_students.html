@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Track Students</title>
+</head>
+<body>
+    <h2>Classroom: {{ classroom_name }}</h2>
+    <h3>Students</h3>
+    <ul>
+        {% for student in students %}
+            <li>{{ student.username }}</li>
+        {% endfor %}
+    </ul>
+    
+    <h3>Student Portfolios</h3>
+    <table border="1">
+        <tr>
+            <th>Username</th>
+            <th>Asset Name</th>
+            <th>Quantity</th>
+            <th>Purchase Price</th>
+            <th>Position Type</th>
+        </tr>
+        {% for portfolio in student_portfolios %}
+        <tr>
+            <td>{{ portfolio.username }}</td>
+            <td>{{ portfolio.asset_name }}</td>
+            <td>{{ portfolio.quantity }}</td>
+            <td>{{ portfolio.purchase_price }}</td>
+            <td>{{ portfolio.position_type }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    
+    <a href="/manage_classrooms">Back to Classrooms</a>
+</body>
+</html>

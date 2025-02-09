@@ -42,7 +42,8 @@
         }
 
         .form-container input[type="text"], 
-        .form-container input[type="password"] {
+        .form-container input[type="password"],
+        .form-container select {
             width: 100%;
             padding: 0.75rem;
             margin-bottom: 1rem;
@@ -54,7 +55,8 @@
         }
 
         .form-container input[type="text"]:focus, 
-        .form-container input[type="password"]:focus {
+        .form-container input[type="password"]:focus,
+        .form-container select:focus {
             outline: none;
             border-color: #2b6cb0;
             box-shadow: 0 0 0 2px rgba(43, 108, 176, 0.2);
@@ -109,6 +111,20 @@
 
             <label for="password">Password:</label>
             <input type="password" id="password" name="password" required>
+
+            <label for="role">Role:</label>
+            <select id="role" name="role" required>
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+            </select>
+
+            <label for="classroom_id">Classroom ID (For Students Only):</label>
+            <select id="classroom_id" name="classroom_id">
+                <option value="">-- Select a Classroom --</option>
+                {% for classroom in classrooms %}
+                    <option value="{{ classroom.id }}">{{ classroom.name }}</option>
+                {% endfor %}
+            </select>
 
             <input type="submit" value="Sign Up">
         </form>

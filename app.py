@@ -77,6 +77,11 @@ class StockApp:
         # Start background monitoring thread
         self.start_price_monitoring()
 
+    def connect_db(self):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row  # Ensures results are dictionary-like
+        return conn
+
     def generate_salt(self, length=16):
         """Generate a random salt of specified length."""
         return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
@@ -105,6 +110,9 @@ class StockApp:
         self.app.route('/glossary', methods=['GET', 'POST'])(self.glossary)
         self.app.route('/article/<int:article_id>')(self.article_detail)
         self.app.route('/articles')(self.articles)
+        self.app.route('/create_classroom', methods=['GET', 'POST'])(self.create_classroom)
+        self.app.route('/manage_classrooms')(self.manage_classrooms)
+        self.app.route('/classroom/<int:classroom_id>')(self.track_students)
 
     def index(self):
         return render_template('index.html')
@@ -113,58 +121,66 @@ class StockApp:
         if request.method == 'POST':
             username = request.form['username']
             password = request.form['password']
-
-            self.conn = sqlite3.connect(self.db_path)
-            self.cursor = self.conn.cursor()
-            self.cursor.execute("SELECT id, password, salt FROM users WHERE username = ?", (username,))
-            user = self.cursor.fetchone()
-            self.conn.close()
-
+            
+            with self.connect_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, password, salt, role, classroom_id FROM users WHERE username = ?", (username,))
+                user = cursor.fetchone()
+            
             if user:
-                user_id, stored_hashed_password, salt = user
-                print(f"Debug: Retrieved user - ID: {user_id}, Password: {stored_hashed_password}, Salt: {salt}")
-
-                # Rehash the input password with the stored salt
+                user_id, stored_hashed_password, salt, role, classroom_id = user
                 hashed_password = self.custom_hash(password, salt)
-                print(f"Debug: Computed hash - {hashed_password}")
-
+                
                 if hashed_password == stored_hashed_password:
                     session['logged_in'] = True
                     session['username'] = username
                     session['user_id'] = user_id
-                    return redirect(url_for('home'))
+                    session['role'] = role
+                    session['classroom_id'] = classroom_id if role == 'student' else None
+                    flash('Login successful!')
+                    return redirect(url_for('manage_classrooms' if role == 'teacher' else 'home'))
                 else:
                     flash('Invalid username or password.')
-                    print("Debug: Password mismatch.")
             else:
                 flash('Invalid username or password.')
-                print("Debug: User not found.")
-
+        
         return render_template('login.html')
+
 
     def signup(self):
         if request.method == 'POST':
             username = request.form['username']
             password = request.form['password']
-
-            # Generate salt and hash the password
+            role = request.form['role']
+            classroom_id = request.form.get('classroom_id') if role == 'student' else None
+            
             salt = self.generate_salt()
             hashed_password = self.custom_hash(password, salt)
-            print(f"Debug: Generated salt - {salt}")
-            print(f"Debug: Hashed password - {hashed_password}")
+            
+            with self.connect_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "INSERT INTO users (username, password, salt, role, classroom_id) VALUES (?, ?, ?, ?, ?)",
+                    (username, hashed_password, salt, role, classroom_id),
+                )
+                user_id = cursor.lastrowid
+                if role == 'student' and classroom_id:
+                    cursor.execute(
+                        "INSERT INTO classroom_members (classroom_id, student_id, join_date) VALUES (?, ?, CURRENT_TIMESTAMP)",
+                        (classroom_id, user_id),
+                    )
+                conn.commit()
+            
+            flash('Signup successful. Please log in.')
+            return redirect('/login')
 
-            # Save username, hashed password, and salt to the database
-            self.conn = sqlite3.connect(self.db_path)
-            self.cursor = self.conn.cursor()
-            self.cursor.execute("INSERT INTO users (username, password, salt, balance) VALUES (?, ?, ?, 100000)",
-                                (username, hashed_password, salt))
-            self.conn.commit()
-            self.conn.close()
-
-            flash('Signup successful. Please login.')
-            return redirect(url_for('login'))
+        with self.connect_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM classrooms")
+            classrooms = cursor.fetchall()
         
-        return render_template('signup.html')
+        return render_template('signup.html', classrooms=classrooms)
+
 
     def home(self):
         if 'logged_in' in session and session['logged_in']:
@@ -215,59 +231,56 @@ class StockApp:
     def monitor_positions(self):
         """Monitor active positions for stop-loss and take-profit execution."""
         while True:
-            self.conn = sqlite3.connect(self.db_path)
-            self.cursor = self.conn.cursor()
+            with self.connect_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, asset_name, quantity, purchase_price, stop_loss, take_profit, position_type, user_id FROM portfolio")
+                positions = cursor.fetchall()
 
-            # Fetch all active positions
-            self.cursor.execute("SELECT id, asset_name, quantity, purchase_price, stop_loss, take_profit, position_type, user_id FROM portfolio")
-            positions = self.cursor.fetchall()
+                for position in positions:
+                    position_id, asset_name, quantity, purchase_price, stop_loss, take_profit, position_type, user_id = position
+                    try:
+                        stock_data = self.fetch_stock_data(asset_name, '1d')
+                        if stock_data is not None:
+                            current_price = round(stock_data['Close'].iloc[-1], 2)
 
-            for position in positions:
-                position_id, asset_name, quantity, purchase_price, stop_loss, take_profit, position_type, user_id = position
-                try:
-                    # Fetch current price
-                    stock_data = self.fetch_stock_data(asset_name, '1d')
-                    if stock_data is not None:
-                        current_price = round(stock_data['Close'].iloc[-1], 2)
+                            if stop_loss is not None and current_price <= stop_loss:
+                                self.execute_trade(position_id, current_price, quantity, user_id, "Stop-loss triggered")
+                                continue
 
-                        if stop_loss is not None and current_price <= stop_loss:
-                            self.execute_trade(position_id, current_price, quantity, user_id, "Stop-loss triggered")
-                            continue
-
-                        if take_profit is not None and current_price >= take_profit:
-                            self.execute_trade(position_id, current_price, quantity, user_id, "Take-profit triggered")
-                            continue
-
-                except Exception as e:
-                    print(f"Error monitoring position {position_id} for {asset_name}: {str(e)}")
-
-            self.conn.close()
+                            if take_profit is not None and current_price >= take_profit:
+                                self.execute_trade(position_id, current_price, quantity, user_id, "Take-profit triggered")
+                                continue
+                    except Exception as e:
+                        print(f"Error monitoring position {position_id} for {asset_name}: {str(e)}")
+            
             time.sleep(60)  # Wait for 1 minute before checking again
 
     def execute_trade(self, position_id, current_price, quantity, user_id, reason):
         """Execute trade by closing position and updating balance."""
-        self.cursor.execute("SELECT balance FROM users WHERE id = ?", (user_id,))
-        current_balance = self.cursor.fetchone()[0]
+        with self.connect_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT balance FROM users WHERE id = ?", (user_id,))
+            current_balance = cursor.fetchone()[0]
 
-        # Fetch position details
-        self.cursor.execute("SELECT purchase_price, position_type FROM portfolio WHERE id = ?", (position_id,))
-        purchase_price, position_type = self.cursor.fetchone()
+            # Fetch position details
+            cursor.execute("SELECT purchase_price, position_type FROM portfolio WHERE id = ?", (position_id,))
+            purchase_price, position_type = cursor.fetchone()
 
-        # Calculate profit or loss
-        if position_type == 'long':
-            profit_loss = round((current_price - purchase_price) * quantity, 2)
-        elif position_type == 'short':
-            profit_loss = round((purchase_price - current_price) * quantity, 2)
+            # Calculate profit or loss
+            if position_type == 'long':
+                profit_loss = round((current_price - purchase_price) * quantity, 2)
+            elif position_type == 'short':
+                profit_loss = round((purchase_price - current_price) * quantity, 2)
 
-        # Update balance
-        new_balance = current_balance + profit_loss
-        self.cursor.execute("UPDATE users SET balance = ? WHERE id = ?", (new_balance, user_id))
+            # Update balance
+            new_balance = current_balance + profit_loss
+            cursor.execute("UPDATE users SET balance = ? WHERE id = ?", (new_balance, user_id))
 
-        # Delete the position
-        self.cursor.execute("DELETE FROM portfolio WHERE id = ?", (position_id,))
-        self.conn.commit()
+            # Delete the position
+            cursor.execute("DELETE FROM portfolio WHERE id = ?", (position_id,))
+            conn.commit()
 
-        print(f"{reason}: Closed position {position_id} with P/L: ${profit_loss:.2f}")
+            print(f"{reason}: Closed position {position_id} with P/L: ${profit_loss:.2f})")
 
     def start_price_monitoring(self):
         """Start a background thread for monitoring prices."""
@@ -300,40 +313,29 @@ class StockApp:
             print("User not logged in; redirecting to login page.")
             return redirect('/login')
 
-        self.conn = sqlite3.connect(self.db_path)
-        self.cursor = self.conn.cursor()
-
         graph_html = None
         company_info = {}
-
-        # Explicitly prioritize form data for asset_name
         asset_name = request.form.get('asset_name') or request.args.get('asset_name', '').strip()
         timeframe = request.args.get('timeframe') or request.form.get('timeframe', '6mo')
 
-        # Prevent redirect loops if asset_name is missing and no trade or search actions
         if not asset_name and 'search_stock' not in request.form and 'tradesubmitted' not in request.form:
             flash("Asset name is missing. Please select or enter a valid asset name.")
             return render_template(
-                'trade.html',
-                balance=0,  # Default balance if it cannot be fetched
-                graph_html=None,
-                company_info={},
-                asset_name=None,
-                timeframe=timeframe,
-                assets=self.assets
+                'trade.html', balance=0, graph_html=None, company_info={},
+                asset_name=None, timeframe=timeframe, assets=self.assets
             )
 
-        # Fetch user's balance
-        try:
-            self.cursor.execute("SELECT balance FROM users WHERE username = ?", (session['username'],))
-            balance = self.cursor.fetchone()[0]
-        except Exception as e:
-            flash("Error fetching user balance.")
-            print(f"Error: {e}")
-            return redirect('/login')
+        with self.connect_db() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("SELECT balance FROM users WHERE username = ?", (session['username'],))
+                balance = cursor.fetchone()[0]
+            except Exception as e:
+                flash("Error fetching user balance.")
+                print(f"Error: {e}")
+                return redirect('/login')
 
-        # Handle graph and company overview for asset_name from sidebar
-        if asset_name and 'search_stock' not in request.form and 'tradesubmitted' not in request.form:
+        if asset_name:
             try:
                 stock_data = self.fetch_stock_data(asset_name, timeframe)
                 if stock_data is not None:
@@ -352,36 +354,12 @@ class StockApp:
             except Exception as e:
                 flash(f"Error fetching data for {asset_name}: {str(e)}")
 
-        # If search form is submitted, display stock info
-        if 'search_stock' in request.form:
-            try:
-                stock_data = self.fetch_stock_data(asset_name, timeframe)
-                if stock_data is not None:
-                    stock_info = yf.Ticker(asset_name)
-                    stock_data = stock_info.history(period=timeframe)
-
-                    company_info = {
-                        'current_price': round(stock_data['Close'].iloc[-1], 2),
-                        'market_cap': stock_info.info.get('marketCap', 'N/A'),
-                        'pe_ratio': stock_info.info.get('trailingPE', 'N/A'),
-                        'high_52_week': stock_info.info.get('fiftyTwoWeekHigh', 'N/A'),
-                        'low_52_week': stock_info.info.get('fiftyTwoWeekLow', 'N/A'),
-                        'div_yield': stock_info.info.get('dividendYield', 'N/A')
-                    }
-                    graph_html = self.create_plot(stock_data, 'candlestick')
-                else:
-                    flash(f"Failed to fetch data for {asset_name}.")
-            except Exception as e:
-                flash(f"Error fetching data for {asset_name}: {str(e)}")
-
-        # If trade form is submitted, execute trade
-        elif 'tradesubmitted' in request.form:
+        if 'tradesubmitted' in request.form:
             action = request.form.get('tradesubmitted')  # 'buy' or 'short'
             quantity = int(request.form.get('quantity', 0))
             stop_loss = request.form.get('stop_loss', '').strip()
             take_profit = request.form.get('take_profit', '').strip()
-
-            # Validate and convert stop_loss and take_profit
+            
             stop_loss = float(stop_loss) if stop_loss else None
             take_profit = float(take_profit) if take_profit else None
 
@@ -390,47 +368,44 @@ class StockApp:
                 return redirect('/trade')
 
             try:
-                # Fetch the exact current price right before placing the trade
                 stock_data = self.fetch_stock_data(asset_name, '1d')
                 if stock_data is not None:
                     current_price = round(stock_data['Close'].iloc[-1], 2)
                     total_cost = current_price * quantity
 
-                    if action == 'buy' and total_cost <= balance:
-                        new_balance = balance - total_cost
-                        self.cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, session['username']))
-                        self.cursor.execute(
-                            "INSERT INTO portfolio (user_id, asset_name, quantity, purchase_price, position_type, stop_loss, take_profit) VALUES (?, ?, ?, ?, 'long', ?, ?)",
-                            (session['user_id'], asset_name, quantity, current_price, stop_loss, take_profit)
-                        )
-                        self.conn.commit()
-                        flash(f"Bought {quantity} shares of {asset_name} at ${current_price:.2f}.")
-                    elif action == 'short' and balance >= total_cost * 0.3:
-                        margin_reserve = total_cost * 0.3
-                        new_balance = balance - margin_reserve
-                        self.cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, session['username']))
-                        self.cursor.execute(
-                            "INSERT INTO portfolio (user_id, asset_name, quantity, purchase_price, position_type, stop_loss, take_profit) VALUES (?, ?, ?, ?, 'short', ?, ?)",
-                            (session['user_id'], asset_name, quantity, current_price, stop_loss, take_profit)
-                        )
-                        self.conn.commit()
-                        flash(f"Short sold {quantity} shares of {asset_name} at ${current_price:.2f}.")
-                    else:
-                        flash("Insufficient balance for this transaction.")
-                else:
-                    flash(f"Failed to fetch current price for {asset_name}.")
+                    with self.connect_db() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT balance FROM users WHERE username = ?", (session['username'],))
+                        balance = cursor.fetchone()[0]
+
+                        if action == 'buy' and total_cost <= balance:
+                            new_balance = balance - total_cost
+                            cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, session['username']))
+                            cursor.execute(
+                                "INSERT INTO portfolio (user_id, asset_name, quantity, purchase_price, position_type, stop_loss, take_profit) VALUES (?, ?, ?, ?, 'long', ?, ?)",
+                                (session['user_id'], asset_name, quantity, current_price, stop_loss, take_profit)
+                            )
+                            conn.commit()
+                            flash(f"Bought {quantity} shares of {asset_name} at ${current_price:.2f}.")
+                        elif action == 'short' and balance >= total_cost * 0.3:
+                            margin_reserve = total_cost * 0.3
+                            new_balance = balance - margin_reserve
+                            cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, session['username']))
+                            cursor.execute(
+                                "INSERT INTO portfolio (user_id, asset_name, quantity, purchase_price, position_type, stop_loss, take_profit) VALUES (?, ?, ?, ?, 'short', ?, ?)",
+                                (session['user_id'], asset_name, quantity, current_price, stop_loss, take_profit)
+                            )
+                            conn.commit()
+                            flash(f"Short sold {quantity} shares of {asset_name} at ${current_price:.2f}.")
+                        else:
+                            flash("Insufficient balance for this transaction.")
             except Exception as e:
                 flash(f"Error executing trade for {asset_name}: {str(e)}")
 
-        self.conn.close()
         return render_template(
-            'trade.html',
-            balance=round(balance, 2),
-            graph_html=graph_html,
-            company_info=company_info,
-            asset_name=asset_name,
-            timeframe=timeframe,
-            assets=self.assets
+            'trade.html', balance=round(balance, 2), graph_html=graph_html,
+            company_info=company_info, asset_name=asset_name,
+            timeframe=timeframe, assets=self.assets
         )
 
 
@@ -439,57 +414,56 @@ class StockApp:
         if 'logged_in' not in session:
             return redirect('/login')
 
-        self.conn = sqlite3.connect(self.db_path)
-        self.cursor = self.conn.cursor()
+        with self.connect_db() as conn:
+            cursor = conn.cursor()
+            if request.method == 'POST':
+                if 'close_position' in request.form:
+                    position_id = request.form['close_position']
+                    quantity_to_close = int(request.form.get('quantity_to_close', 0))
+                    cursor.execute("SELECT asset_name, quantity, purchase_price, position_type FROM portfolio WHERE id = ?", (position_id,))
+                    position = cursor.fetchone()
 
-        if request.method == 'POST':
-            if 'close_position' in request.form:
-                position_id = request.form['close_position']
-                quantity_to_close = int(request.form.get('quantity_to_close', 0))
-                self.cursor.execute("SELECT asset_name, quantity, purchase_price, position_type FROM portfolio WHERE id = ?", (position_id,))
-                position = self.cursor.fetchone()
+                    if position:
+                        asset_name, quantity, purchase_price, position_type = position
+                        live_price = round(yf.Ticker(asset_name).history(period='1d')['Close'].iloc[-1], 2)
+                        cursor.execute("SELECT balance FROM users WHERE username = ?", (session['username'],))
+                        current_balance = cursor.fetchone()[0]
 
-                if position:
-                    asset_name, quantity, purchase_price, position_type = position
-                    live_price = round(yf.Ticker(asset_name).history(period='1d')['Close'].iloc[-1], 2)
-                    self.cursor.execute("SELECT balance FROM users WHERE username = ?", (session['username'],))
-                    current_balance = self.cursor.fetchone()[0]
+                        if quantity_to_close > 0 and quantity_to_close <= quantity:
+                            if position_type == 'short':
+                                margin_reserve = purchase_price * quantity_to_close * 0.3
+                                profit_loss = round((purchase_price - live_price) * quantity_to_close, 2)
+                                new_balance = round(current_balance + margin_reserve + profit_loss, 2)
+                                cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, session['username']))
+                                flash(f'Closed {quantity_to_close} of {asset_name} with a {"profit" if profit_loss > 0 else "loss"} of ${profit_loss:.2f}. Margin released.')
 
-                    if quantity_to_close > 0 and quantity_to_close <= quantity:
-                        if position_type == 'short':
-                            margin_reserve = purchase_price * quantity_to_close * 0.3
-                            profit_loss = round((purchase_price - live_price) * quantity_to_close, 2)
-                            new_balance = round(current_balance + margin_reserve + profit_loss, 2)
-                            self.cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, session['username']))
-                            flash(f'Closed {quantity_to_close} of {asset_name} with a {"profit" if profit_loss > 0 else "loss"} of ${profit_loss:.2f}. Margin released.')
+                            elif position_type == 'long':
+                                total_value = purchase_price * quantity_to_close
+                                profit_loss = round((live_price - purchase_price) * quantity_to_close, 3)
+                                new_balance = round(current_balance + total_value + profit_loss, 3)
+                                cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, session['username']))
+                                flash(f'Closed {quantity_to_close} of {asset_name} with a {"profit" if profit_loss > 0 else "loss"} of ${profit_loss:.2f}.')
 
-                        elif position_type == 'long':
-                            total_value = purchase_price * quantity_to_close
-                            profit_loss = round((live_price - purchase_price) * quantity_to_close, 3)
-                            new_balance = round(current_balance + total_value + profit_loss, 3)
-                            self.cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, session['username']))
-                            flash(f'Closed {quantity_to_close} of {asset_name} with a {"profit" if profit_loss > 0 else "loss"} of ${profit_loss:.2f}.')
+                            if quantity_to_close == quantity:
+                                cursor.execute("DELETE FROM portfolio WHERE id = ?", (position_id,))
+                            else:
+                                new_quantity = quantity - quantity_to_close
+                                cursor.execute("UPDATE portfolio SET quantity = ? WHERE id = ?", (new_quantity, position_id))
 
-                        if quantity_to_close == quantity:
-                            self.cursor.execute("DELETE FROM portfolio WHERE id = ?", (position_id,))
+                            conn.commit()
                         else:
-                            new_quantity = quantity - quantity_to_close
-                            self.cursor.execute("UPDATE portfolio SET quantity = ? WHERE id = ?", (new_quantity, position_id))
+                            flash('Invalid quantity to close.')
 
-                        self.conn.commit()
-                    else:
-                        flash('Invalid quantity to close.')
+                elif 'reset_balance' in request.form:
+                    cursor.execute("UPDATE users SET balance = 100000 WHERE username = ?", (session['username'],))
+                    cursor.execute("DELETE FROM portfolio WHERE user_id = (SELECT id FROM users WHERE username = ?)", (session['username'],))
+                    conn.commit()
+                    flash('Portfolio balance reset to $100,000.')
 
-            elif 'reset_balance' in request.form:
-                self.cursor.execute("UPDATE users SET balance = 100000 WHERE username = ?", (session['username'],))
-                self.cursor.execute("DELETE FROM portfolio WHERE user_id = (SELECT id FROM users WHERE username = ?)", (session['username'],))
-                self.conn.commit()
-                flash('Portfolio balance reset to $100,000.')
-
-        self.cursor.execute("SELECT * FROM portfolio WHERE user_id = (SELECT id FROM users WHERE username = ?)", (session['username'],))
-        positions = self.cursor.fetchall()
-        self.cursor.execute("SELECT balance FROM users WHERE username = ?", (session['username'],))
-        balance = self.cursor.fetchone()[0]
+            cursor.execute("SELECT * FROM portfolio WHERE user_id = (SELECT id FROM users WHERE username = ?)", (session['username'],))
+            positions = cursor.fetchall()
+            cursor.execute("SELECT balance FROM users WHERE username = ?", (session['username'],))
+            balance = cursor.fetchone()[0]
 
         current_price = {}
         price_change = {}
@@ -516,7 +490,6 @@ class StockApp:
             except Exception as e:
                 flash(f'Error fetching price for {asset_name}: {str(e)}')
 
-        self.conn.close()
         return render_template('portfolio.html', 
                             positions=positions, 
                             balance=round(balance, 2), 
@@ -524,7 +497,6 @@ class StockApp:
                             price_change=price_change, 
                             market_value=market_value, 
                             profit_loss=profit_loss)
-
 
    
     def articles(self):
@@ -598,6 +570,59 @@ class StockApp:
             }
 
         return render_template('glossary.html', results=results, search_query=search_query)
+    
+    # Route for creating a classroom (teachers only)
+    def create_classroom(self):
+        if 'logged_in' not in session or session.get('role') != 'teacher':
+            return redirect(url_for('login'))
+        
+        if request.method == 'POST':
+            name = request.form['name']
+            teacher_id = session['user_id']
+            
+            with self.connect_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO classrooms (name, teacher_id) VALUES (?, ?)", (name, teacher_id))
+                conn.commit()
+            
+            flash('Classroom created successfully!')
+            return redirect(url_for('manage_classrooms'))
+        
+        return render_template('create_classroom.html')
+
+    def manage_classrooms(self):
+        if 'logged_in' not in session or session.get('role') != 'teacher':
+            return redirect(url_for('login'))
+        
+        teacher_id = session['user_id']
+        with self.connect_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM classrooms WHERE teacher_id = ?", (teacher_id,))
+            classrooms = cursor.fetchall()
+        
+        return render_template('manage_classrooms.html', classrooms=classrooms)
+
+    def track_students(self, classroom_id):
+        if 'logged_in' not in session or session.get('role') != 'teacher':
+            return redirect(url_for('login'))
+        
+        with self.connect_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM classrooms WHERE id = ? AND teacher_id = ?", (classroom_id, session['user_id']))
+            classroom = cursor.fetchone()
+            
+            if not classroom:
+                flash('Invalid classroom or permission denied.')
+                return redirect(url_for('manage_classrooms'))
+            
+            cursor.execute("SELECT users.id, users.username FROM classroom_members JOIN users ON classroom_members.student_id = users.id WHERE classroom_members.classroom_id = ?", (classroom_id,))
+            students = cursor.fetchall()
+            
+            cursor.execute("SELECT users.username, portfolio.* FROM users LEFT JOIN portfolio ON users.id = portfolio.user_id WHERE users.id IN (SELECT student_id FROM classroom_members WHERE classroom_id = ?)", (classroom_id,))
+            student_portfolios = cursor.fetchall()
+        
+        return render_template('track_students.html', classroom_name=classroom[0], students=students, student_portfolios=student_portfolios)
+
 
 if __name__ == '__main__':
     stock_app = StockApp()

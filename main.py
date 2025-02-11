@@ -23,6 +23,7 @@ class StockApp:
         self.conn = None
         self.cursor = None
 
+
         self.articles_list = [
             {
             'id': 1,
@@ -665,7 +666,3 @@ class StockApp:
         
         return render_template('track_students.html', classroom_name=classroom['name'], student_rankings=student_rankings, sort_by=sort_by)
 
-
-if __name__ == '__main__':
-    stock_app = StockApp()
-    stock_app.run()
